@@ -31,6 +31,8 @@ uv run tracker equipment --all              # every row from every document
 uv run tracker owners lookup                # franchise tax details and sister LLCs
 uv run tracker owners queue                 # entities still without a company
 uv run tracker ticker ORCL                  # one ticker's sites and supplied equipment
+uv run tracker refresh                      # all collectors + change report (weekly job)
+uv run tracker schedule install             # run refresh every Monday 06:00 via launchd
 uv run tracker db rebuild                   # re-extract saved documents after an upgrade
 uv run pytest
 ```
@@ -110,6 +112,28 @@ Project LLCs ("Nolan Ranch DC Owner LLC") rarely say who is behind them. Three s
 Every lookup response is saved like any other raw document, so `db rebuild` replays them
 without downloading.
 
+## Weekly refresh
+
+`tracker refresh` runs TCEQ discovery, the Comptroller registry pull, and owner lookups for
+new entities, in that order. A source that fails is recorded and the others still run. It
+writes `data/refresh/<timestamp>.md` (and `.json`), copied to `data/refresh/latest.md`:
+
+- new filings, new sites, status changes, and companies newly tied to a site;
+- health checks: a source that returns nothing, or under half of last run's count, or a
+  burst of dropped registry entries or failed downloads, is flagged instead of looking
+  like a quiet week. The command exits with status 1 when a check fails.
+
+`tracker schedule install [--day mon --at 06:00]` installs a launchd LaunchAgent
+(`~/Library/LaunchAgents/com.texas-dc-tracker.refresh.plist`) that runs the refresh weekly;
+a Mac that is asleep at that time runs it on the next wake. Output goes to
+`data/refresh/launchd.log`. `tracker schedule status` shows whether it is loaded and the
+latest report; `run-now` starts it immediately in launchd's environment; `uninstall`
+removes it.
+
+macOS keeps background jobs out of `~/Downloads`, `~/Documents`, and `~/Desktop`. If the
+project lives there, grant uv Full Disk Access (System Settings > Privacy & Security) or
+move the project, then check with `tracker schedule run-now`.
+
 ## Ticker pages
 
 `tracker serve` runs a read-only JSON API (`/api/tickers`, `/api/tickers/{symbol}`, docs at
@@ -166,6 +190,9 @@ src/tracker/
   entities.py            entities, entity-to-site and company links, confidence rollup
   owners.py              franchise tax lookups, sister LLCs, hand findings
   views/ticker.py        ticker page data: demand-side sites, supplied equipment
+  jobs.py                collection jobs shared by the CLI and the refresh
+  refresh.py             weekly refresh: run collectors, change report, health checks
+  schedule.py            launchd LaunchAgent for the weekly refresh
   api.py                 FastAPI JSON API, serves web/dist
 web/                     React + Vite frontend
   collectors/comptroller/ Comptroller data center registry and franchise tax file

@@ -17,3 +17,4 @@ data/*.db.bak
 data/*.csv
 web/node_modules/
 web/dist/
+data/refresh/

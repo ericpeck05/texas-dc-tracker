@@ -9,38 +9,30 @@ from datetime import date
 from pathlib import Path
 from typing import Annotated
 
-import httpx
 import typer
 from sqlalchemy import func, select
 
-from tracker.collectors.comptroller.data_center_registry import REGISTRY_URL, parse_registry
+from tracker import jobs
 from tracker.collectors.comptroller.data_center_registry import SOURCE as REGISTRY_SOURCE
 from tracker.collectors.comptroller.franchise_tax import SOURCE as FRANCHISE_SOURCE
 from tracker.collectors.comptroller.franchise_tax import (
     Lookup,
-    address_query_url,
-    name_query_url,
 )
 from tracker.collectors.tceq.air_permits import Fetched, fetch_seeds, read_seeds
-from tracker.collectors.tceq.records_online import DEFAULT_KEYWORDS, RecordsOnline, plan_discovery
-from tracker.config import PILOT_COUNTIES, get_settings
-from tracker.db.models import Document, Equipment, LinkType, Signal, Site
+from tracker.collectors.tceq.records_online import DEFAULT_KEYWORDS
+from tracker.config import get_settings
+from tracker.db.models import Equipment, LinkType, Signal, Site
 from tracker.db.session import init_db, make_engine, session_scope
-from tracker.entities import entity_key, site_companies, site_entities
-from tracker.http import PoliteClient, RobotsDisallowed
+from tracker.entities import site_companies, site_entities
+from tracker.http import PoliteClient
 from tracker.ingest import IngestResult, ingest_tceq_air
+from tracker.jobs import report_line
 from tracker.owners import (
-    AGENT_OFFICE_MIN,
     apply_findings,
-    apply_lookup,
-    lookup_targets,
     owner_queue,
     read_findings,
-    saved_lookups,
 )
-from tracker.registry_import import import_registry
 from tracker.rollup import site_inventory
-from tracker.storage import save_raw
 
 app = typer.Typer(help="Texas data center tracker.", no_args_is_help=True)
 db_app = typer.Typer(help="Database commands.", no_args_is_help=True)
@@ -60,14 +52,7 @@ def _engine():
 
 
 def _report(result: IngestResult, label: str) -> None:
-    if not result.created:
-        typer.echo(f"  skip  {label} (already ingested)")
-        return
-    eq = result.signal.equipment
-    site = result.site.name if result.site else "no RN, unmatched"
-    county = result.site.county if result.site else None
-    flag = "" if county is None or county in PILOT_COUNTIES else f"  [outside pilot: {county}]"
-    typer.echo(f"  ok    {label}: {len(eq)} equipment rows, site: {site}{flag}")
+    typer.echo(report_line(result, label))
 
 
 @db_app.command("init")
@@ -112,14 +97,14 @@ def db_rebuild() -> None:
             continue
         if source == REGISTRY_SOURCE:
             with session_scope(engine) as session:
-                report, entries = _import_registry_page(
+                report, entries = jobs.import_registry_page(
                     session, settings, raw.read_bytes(), content_type
                 )
             typer.echo(f"  registry  {len(entries)} entries, {len(report.new)} new ({raw.name})")
             continue
         if source == FRANCHISE_SOURCE:
             with session_scope(engine) as session:
-                _store_lookup(session, settings, Lookup.from_bytes(raw.read_bytes()))
+                jobs.store_lookup(session, settings, Lookup.from_bytes(raw.read_bytes()))
             continue
         with session_scope(engine) as session:
             result = ingest_tceq_air(
@@ -136,18 +121,6 @@ def db_rebuild() -> None:
         missing = apply_findings(session, read_findings())
     for name in missing:
         typer.echo(f"  owner finding for unknown entity: {name}")
-
-
-def _backfill_site_name(session, document: Document, listed_name: str | None) -> None:
-    """Record the search listing's site name and use it for a site the documents never named."""
-    if not listed_name:
-        return
-    if document.listed_site_name is None:
-        document.listed_site_name = listed_name
-    for sig in document.signals:
-        if sig.site is not None and sig.site.name.startswith("Unnamed site "):
-            sig.site.aliases = [*sig.site.aliases, sig.site.name]
-            sig.site.name = listed_name
 
 
 @pull_app.command("tceq")
@@ -185,30 +158,6 @@ def pull_tceq(
         raise typer.Exit(1)
 
 
-def _import_registry_page(session, settings, content: bytes, content_type: str | None):
-    stored = save_raw(
-        content,
-        source=REGISTRY_SOURCE,
-        raw_dir=settings.raw_dir,
-        ext=".html",
-        content_type=content_type,
-    )
-    entries = parse_registry(content.decode("utf-8", errors="replace"))
-    doc = session.scalar(select(Document).where(Document.sha256 == stored.sha256))
-    if doc is None:
-        doc = Document(
-            source=REGISTRY_SOURCE,
-            url=REGISTRY_URL,
-            sha256=stored.sha256,
-            local_path=str(stored.path),
-            content_type=content_type,
-            size_bytes=stored.size,
-        )
-        session.add(doc)
-        session.flush()
-    return import_registry(session, entries, doc), entries
-
-
 @pull_app.command("comptroller")
 def pull_comptroller(
     page: Annotated[
@@ -216,36 +165,8 @@ def pull_comptroller(
     ] = None,
 ) -> None:
     """Pull the Comptroller's registry of data centers certified for the sales tax exemption."""
-    settings = get_settings()
-    engine = _engine()
-    if page is not None:
-        content, content_type = page.read_bytes(), "text/html"
-    else:
-        with PoliteClient(settings) as client:
-            resp = client.get(REGISTRY_URL)
-        content, content_type = resp.content, resp.headers.get("content-type")
-    with session_scope(engine) as session:
-        report, entries = _import_registry_page(session, settings, content, content_type)
-        typer.echo(
-            f"{len(entries)} registry entries: {len(report.new)} new, "
-            f"{len(report.changed)} changed, {report.unchanged} unchanged, "
-            f"{len(report.dropped)} no longer listed"
-        )
-        for m in report.new:
-            if m.how == "new":
-                continue
-            typer.echo(f"  match ({m.how}, {m.confidence})  {m.entry.name}  ->  {m.site.name}")
-            typer.echo(f"        {m.note}")
-        created = sum(1 for m in report.new if m.how == "new")
-        typer.echo(f"  {created} entries became new sites (no existing site matched)")
-        for e in report.changed:
-            typer.echo(f"  changed  {e.registration_id} {e.name}")
-        for sig in report.dropped:
-            typer.echo(f"  dropped  {sig.permit_number} {sig.title}")
-        if report.review:
-            typer.echo(f"  {len(report.review)} possible matches left for review (low confidence):")
-            for line in report.review:
-                typer.echo(f"    {line}")
+    content = page.read_bytes() if page is not None else None
+    jobs.pull_registry(get_settings(), _engine(), typer.echo, content=content)
 
 
 @discover_app.command("tceq")
@@ -263,51 +184,15 @@ def discover_tceq(
     ] = False,
 ) -> None:
     """Search TCEQ Records Online for data center permits and ingest their key documents."""
-    settings = get_settings()
-    keywords = tuple(keyword) if keyword else DEFAULT_KEYWORDS
-    engine = _engine()
-    with PoliteClient(settings) as client:
-        ro = RecordsOnline(client)
-        typer.echo(f"Searching site names for {', '.join(keywords)} (since {since})")
-        plan = plan_discovery(
-            ro, keywords, since=date.fromisoformat(since), max_permits=max_permits
-        )
-        for permit, name in plan.skipped_construction:
-            typer.echo(f"  skip  permit {permit} {name} (construction site, not a data center)")
-        n_docs = sum(len(p.documents) for p in plan.permits)
-        typer.echo(f"{len(plan.permits)} permits, {n_docs} documents to check")
-
-        for p in plan.permits:
-            typer.echo(f"permit {p.permit_number}  {p.site_name or '?'}")
-            if not p.documents:
-                typer.echo("  none  no technical review or final action listed")
-            for doc in p.documents:
-                label = f"{doc.title} {doc.begin_date or '?'} (content {doc.content_id})"
-                with session_scope(engine) as session:
-                    seen = session.scalar(select(Document).where(Document.url == doc.file_url))
-                    if seen is not None and not dry_run:
-                        _backfill_site_name(session, seen, p.site_name)
-                if seen is not None:
-                    typer.echo(f"  skip  {label} (already ingested)")
-                    continue
-                if dry_run:
-                    typer.echo(f"  would fetch  {label}")
-                    continue
-                try:
-                    resp = client.get(doc.file_url)
-                except (httpx.HTTPError, RobotsDisallowed) as exc:
-                    typer.echo(f"  FAIL  {label}: {exc}")
-                    continue
-                with session_scope(engine) as session:
-                    result = ingest_tceq_air(
-                        session,
-                        resp.content,
-                        raw_dir=settings.raw_dir,
-                        url=doc.file_url,
-                        content_type=resp.headers.get("content-type"),
-                        site_name_hint=p.site_name,
-                    )
-                    _report(result, label)
+    jobs.discover_tceq(
+        get_settings(),
+        _engine(),
+        typer.echo,
+        keywords=tuple(keyword) if keyword else DEFAULT_KEYWORDS,
+        since=date.fromisoformat(since),
+        max_permits=max_permits,
+        dry_run=dry_run,
+    )
 
 
 @app.command("ingest")
@@ -451,30 +336,6 @@ def sites(
             typer.echo(f"{shown} sites with two or more kinds of signal")
 
 
-def _store_lookup(session, settings, lookup: Lookup) -> str:
-    content = lookup.to_bytes()
-    stored = save_raw(
-        content,
-        source=FRANCHISE_SOURCE,
-        raw_dir=settings.raw_dir,
-        ext=".json",
-        content_type="application/json",
-    )
-    if session.scalar(select(Document).where(Document.sha256 == stored.sha256)) is None:
-        session.add(
-            Document(
-                source=FRANCHISE_SOURCE,
-                url=lookup.url,
-                sha256=stored.sha256,
-                local_path=str(stored.path),
-                content_type="application/json",
-                size_bytes=stored.size,
-            )
-        )
-        session.flush()
-    return apply_lookup(session, lookup)
-
-
 @owners_app.command("lookup")
 def owners_lookup(
     refresh: Annotated[bool, typer.Option(help="Look up names already looked up.")] = False,
@@ -484,38 +345,7 @@ def owners_lookup(
 
     Then look up who else uses each one's mailing address, to find sister LLCs.
     """
-    settings = get_settings()
-    engine = _engine()
-    with PoliteClient(settings) as client, session_scope(engine) as session:
-        done = saved_lookups(session)
-        names = [
-            e.legal_name
-            for e in lookup_targets(session)
-            if refresh or ("name", entity_key(e.legal_name)) not in done
-        ][:max_names]
-        typer.echo(f"Looking up {len(names)} names")
-        for name in names:
-            url = name_query_url(name)
-            rows = client.get(url).json()
-            status = _store_lookup(session, settings, Lookup("name", name, url, rows))
-            typer.echo(f"  {name}: {status}")
-        done = saved_lookups(session)
-        addresses = set()
-        for e in lookup_targets(session):
-            lookup = done.get(("name", entity_key(e.legal_name)))
-            if not (e.taxpayer_number and lookup):
-                continue
-            for row in lookup.rows:
-                if row.get("taxpayer_number") == e.taxpayer_number:
-                    addresses.add((row.get("taxpayer_address", ""), row.get("taxpayer_zip", "")))
-        for address, zip_code in sorted(addresses):
-            query = f"{address}|{zip_code}"
-            if not refresh and ("address", query) in done:
-                continue
-            url = address_query_url(address, zip_code, limit=AGENT_OFFICE_MIN * 2)
-            rows = client.get(url).json()
-            status = _store_lookup(session, settings, Lookup("address", query, url, rows))
-            typer.echo(f"  {status}")
+    jobs.lookup_owners(get_settings(), _engine(), typer.echo, refresh=refresh, max_names=max_names)
 
 
 @owners_app.command("queue")
@@ -659,6 +489,73 @@ def ticker(symbol: str) -> None:
                 f"{site['mw']} MW"
             )
     typer.echo("Not investment advice.")
+
+
+@app.command("refresh")
+def refresh() -> None:
+    """Run every collector, then write a report of what changed (data/refresh/latest.md).
+
+    Exits with status 1 if a health check fails, e.g. a source returned nothing."""
+    from tracker.refresh import run_refresh
+
+    report, path = run_refresh(get_settings(), _engine(), typer.echo)
+    typer.echo("")
+    typer.echo(path.read_text())
+    if report.failed:
+        raise typer.Exit(1)
+
+
+schedule_app = typer.Typer(help="Weekly refresh with launchd (macOS).", no_args_is_help=True)
+app.add_typer(schedule_app, name="schedule")
+
+
+@schedule_app.command("install")
+def schedule_install(
+    day: Annotated[str, typer.Option(help="Day of week: sun, mon, ... sat.")] = "mon",
+    at: Annotated[str, typer.Option(help="Local time, HH:MM.")] = "06:00",
+) -> None:
+    """Install and load a LaunchAgent that runs `tracker refresh` once a week."""
+    from tracker import schedule
+
+    hour, minute = (int(x) for x in at.split(":"))
+    if folder := schedule.protected_folder():
+        typer.echo(
+            f"Note: the project is in ~/{folder}, which macOS keeps from background jobs. "
+            "Grant uv access (System Settings > Privacy & Security > Full Disk Access), "
+            "or move the project, or the weekly run will fail to read it."
+        )
+    path = schedule.install(schedule.DAYS[day.lower()[:3]], hour, minute)
+    typer.echo(f"Installed {path}: every {day} at {at}. Log: data/refresh/launchd.log")
+
+
+@schedule_app.command("uninstall")
+def schedule_uninstall() -> None:
+    """Unload and remove the LaunchAgent."""
+    from tracker import schedule
+
+    typer.echo("Removed." if schedule.uninstall() else "Not installed.")
+
+
+@schedule_app.command("status")
+def schedule_status() -> None:
+    """Whether the weekly job is loaded, and the last refresh report."""
+    from tracker import schedule
+
+    settings = get_settings()
+    typer.echo(
+        f"LaunchAgent {schedule.PLIST_PATH}: {'loaded' if schedule.is_loaded() else 'not loaded'}"
+    )
+    latest = settings.data_dir / "refresh" / "latest.md"
+    typer.echo(latest.read_text() if latest.exists() else "No refresh has run yet.")
+
+
+@schedule_app.command("run-now")
+def schedule_run_now() -> None:
+    """Start the scheduled job now, in launchd's environment (checks permissions)."""
+    from tracker import schedule
+
+    schedule.run_now()
+    typer.echo("Started. Follow data/refresh/launchd.log")
 
 
 def main() -> None:
