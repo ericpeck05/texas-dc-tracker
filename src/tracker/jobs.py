@@ -14,6 +14,10 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.engine import Engine
 
+from tracker.abatement_import import AbatementReport, import_abatements
+from tracker.collectors.comptroller.abatements import DETAIL_URL as ABATEMENT_URL
+from tracker.collectors.comptroller.abatements import SOURCE as ABATEMENT_SOURCE
+from tracker.collectors.comptroller.abatements import parse_detail
 from tracker.collectors.comptroller.data_center_registry import (
     REGISTRY_URL,
     parse_registry,
@@ -201,6 +205,65 @@ def pull_registry(
             for line in report.review:
                 echo(f"    {line}")
     return RegistryResult(len(entries), report)
+
+
+# --- Chapter 312 tax abatements ------------------------------------------------------
+
+
+def _snapshot(session, settings: Settings, content: bytes, *, source, url, ext, content_type):
+    stored = save_raw(
+        content, source=source, raw_dir=settings.raw_dir, ext=ext, content_type=content_type
+    )
+    doc = session.scalar(select(Document).where(Document.sha256 == stored.sha256))
+    if doc is None:
+        doc = Document(
+            source=source,
+            url=url,
+            sha256=stored.sha256,
+            local_path=str(stored.path),
+            content_type=content_type,
+            size_bytes=stored.size,
+        )
+        session.add(doc)
+        session.flush()
+    return doc
+
+
+def import_abatement_file(session, settings: Settings, content: bytes) -> AbatementReport:
+    doc = _snapshot(
+        session,
+        settings,
+        content,
+        source=ABATEMENT_SOURCE,
+        url=ABATEMENT_URL,
+        ext=".csv",
+        content_type="text/csv",
+    )
+    return import_abatements(session, parse_detail(content), doc)
+
+
+def pull_abatements(
+    settings: Settings, engine: Engine, echo: Echo, *, content: bytes | None = None
+) -> AbatementReport:
+    if content is None:
+        with PoliteClient(settings) as client:
+            resp = client.get(ABATEMENT_URL)
+            resp.raise_for_status()
+        content = resp.content
+    with session_scope(engine) as session:
+        report = import_abatement_file(session, settings, content)
+        echo(
+            f"{report.agreements} abatement agreements, {report.data_centers} data centers: "
+            f"{len(report.new)} new, {len(report.changed)} changed, {report.unchanged} unchanged"
+        )
+        for m in report.new:
+            where = m.site.name if m.site else "no site (review)"
+            echo(f"  {m.how:<11} {m.abatement.record_id} {m.abatement.zone}  ->  {where}")
+            if m.note:
+                echo(f"              {m.note}")
+        for line in report.review:
+            echo(f"  review  {line}")
+    return report
 
 
 # --- Owner lookups --------------------------------------------------------------------

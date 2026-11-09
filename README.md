@@ -24,6 +24,7 @@ uv run tracker pull tceq                    # URLs listed in seeds/tceq_air.csv
 uv run tracker discover tceq --dry-run      # search TCEQ Records Online, list what it would fetch
 uv run tracker discover tceq                # fetch and ingest those documents
 uv run tracker pull comptroller             # Comptroller data center registry (owners, tenants)
+uv run tracker pull abatements              # Chapter 312 tax abatements for data centers
 uv run tracker sites                        # sites, permits, companies, NSR refs
 uv run tracker sites --linked               # only sites with two or more kinds of signal
 uv run tracker equipment                    # current units per site, each counted once
@@ -79,6 +80,23 @@ because the tie between the registry entry and the site is. Weaker candidates ar
 low-confidence links for review, never merged. Rerunning reports new, changed, and dropped
 entries.
 
+## Tax abatements
+
+`tracker pull abatements` downloads the Comptroller's
+[Chapter 312 abatement file](https://comptroller.texas.gov/economy/development/search-tools/ch312/abatements-simple.php)
+(official CSV, one row per taxing unit) and keeps agreements that are data centers: a data
+hosting NAICS code (5182), "data center" in the zone or owner name, an owner already tied to
+a tracked site, or an owner from a data-center-only company (Crusoe, Compass, Equinix,
+miners). Amazon or other hyperscaler owners alone don't count, since they also get
+abatements for warehouses and offices.
+
+Each agreement becomes an APPROVAL signal and its organization owners OWN the site. It is
+matched to a site by owner (an owner tied to exactly one site), then by owner and place
+when the owner has several sites ("Houston City" picks CyrusOne's Houston site). An owner on
+several sites with no place to decide leaves the signal unmatched with low-confidence review
+links. A match also fills in the county, which registry sites lack. Owners that look like
+individuals, and the local official who filed the report, are never stored.
+
 ## Permit holders
 
 Each TCEQ filing's applicant becomes an entity linked to its site as permit holder
@@ -114,8 +132,8 @@ without downloading.
 
 ## Weekly refresh
 
-`tracker refresh` runs TCEQ discovery, the Comptroller registry pull, and owner lookups for
-new entities, in that order. A source that fails is recorded and the others still run. It
+`tracker refresh` runs TCEQ discovery, the Comptroller registry pull, the Chapter 312
+abatement pull, and owner lookups for new entities, in that order. A source that fails is recorded and the others still run. It
 writes `data/refresh/<timestamp>.md` (and `.json`), copied to `data/refresh/latest.md`:
 
 - new filings, new sites, status changes, and companies newly tied to a site;
@@ -187,6 +205,7 @@ src/tracker/
   collectors/tceq/       TCEQ collectors (seed list, Records Online discovery)
   rollup.py              current equipment per site, each unit counted once
   registry_import.py     Comptroller registry: site matching and party links
+  abatement_import.py    Chapter 312 abatements: data center filter, site matching
   entities.py            entities, entity-to-site and company links, confidence rollup
   owners.py              franchise tax lookups, sister LLCs, hand findings
   views/ticker.py        ticker page data: demand-side sites, supplied equipment
@@ -195,7 +214,7 @@ src/tracker/
   schedule.py            launchd LaunchAgent for the weekly refresh
   api.py                 FastAPI JSON API, serves web/dist
 web/                     React + Vite frontend
-  collectors/comptroller/ Comptroller data center registry and franchise tax file
+  collectors/comptroller/ Comptroller registry, Chapter 312 abatements, franchise tax file
   reference/companies.py companies behind legal names, with tickers
   parsers/pdf.py         pdfplumber with PyMuPDF fallback
   extract/tceq_air.py    rule-based equipment extraction

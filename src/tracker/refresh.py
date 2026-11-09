@@ -4,7 +4,8 @@ Steps, in order (a failing step is recorded and the rest still run):
 
 1. TCEQ Records Online discovery: new permits and documents.
 2. Comptroller data center registry: new, changed, and dropped entries.
-3. Franchise tax lookups for entities not looked up yet.
+3. Comptroller Chapter 312 tax abatements: data center agreements.
+4. Franchise tax lookups for entities not looked up yet.
 
 What changed is found by id watermarks taken before the run: every site, signal, status
 change, and company link with a higher id is new. Health checks compare each source with
@@ -191,6 +192,15 @@ def health_checks(report: RefreshReport, previous: dict | None) -> list[Check]:
                 checks.append(Check("warn", step.name, msg))
             if c["dropped"] > max(5, 0.1 * c["entries"]):
                 checks.append(Check("warn", step.name, f"{c['dropped']} entries no longer listed"))
+        elif step.name == "comptroller_abatements":
+            if c["agreements"] == 0:
+                checks.append(Check("fail", step.name, "abatement file had no agreements"))
+            elif before.get("agreements") and c["agreements"] < DROP_WARN * before["agreements"]:
+                msg = f"{c['agreements']} agreements, {before['agreements']} last run"
+                checks.append(Check("warn", step.name, msg))
+            if before.get("data_centers") and c["data_centers"] < before["data_centers"]:
+                msg = f"{c['data_centers']} data center agreements, was {before['data_centers']}"
+                checks.append(Check("warn", step.name, msg))
         elif step.name == "owner_lookups":
             if c["names"] and c["failed"] >= c["names"]:
                 checks.append(Check("fail", step.name, "every franchise tax lookup failed"))
@@ -219,7 +229,12 @@ def run_refresh(
     engine: Engine,
     echo: Echo,
     *,
-    steps: tuple[str, ...] = ("tceq_discovery", "comptroller_registry", "owner_lookups"),
+    steps: tuple[str, ...] = (
+        "tceq_discovery",
+        "comptroller_registry",
+        "comptroller_abatements",
+        "owner_lookups",
+    ),
     out_dir: Path | None = None,
     collectors: dict[str, Callable[[], dict]] | None = None,
 ) -> tuple[RefreshReport, Path]:
@@ -234,6 +249,9 @@ def run_refresh(
         "tceq_discovery": lambda: _discovery_counts(jobs.discover_tceq(settings, engine, echo)),
         "comptroller_registry": lambda: _registry_counts(
             jobs.pull_registry(settings, engine, echo)
+        ),
+        "comptroller_abatements": lambda: _abatement_counts(
+            jobs.pull_abatements(settings, engine, echo)
         ),
         "owner_lookups": lambda: _owner_counts(
             jobs.lookup_owners(settings, engine, echo, max_names=200)
@@ -277,6 +295,16 @@ def _registry_counts(r: jobs.RegistryResult) -> dict:
     }
 
 
+def _abatement_counts(r) -> dict:
+    return {
+        "agreements": r.agreements,
+        "data_centers": r.data_centers,
+        "new": len(r.new),
+        "changed": len(r.changed),
+        "review": len(r.review),
+    }
+
+
 def _owner_counts(r: jobs.OwnersResult) -> dict:
     return {
         "names": r.names,
@@ -308,7 +336,7 @@ def render_markdown(r: RefreshReport) -> str:
     lines.append(f"## New filings ({len(r.new_signals)})")
     for sig in r.new_signals:
         where = sig["site"] or "unmatched"
-        word = "registration" if sig["type"] == "incentive" else "permit"
+        word = {"incentive": "registration", "approval": "agreement"}.get(sig["type"], "permit")
         permit = f" {word} {sig['permit']}" if sig["permit"] else ""
         eq = f", {sig['equipment_rows']} equipment rows" if sig["equipment_rows"] else ""
         link = f" [document]({sig['url']})" if sig["url"] else ""

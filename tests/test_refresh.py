@@ -15,6 +15,13 @@ from tracker.schedule import build_plist, protected_folder
 GOOD = {
     "tceq_discovery": {"permits": 40, "documents": 60, "fetched": 0, "already": 60, "failed": 0},
     "comptroller_registry": {"entries": 177, "new": 0, "changed": 0, "dropped": 0, "review": 0},
+    "comptroller_abatements": {
+        "agreements": 1391,
+        "data_centers": 16,
+        "new": 0,
+        "changed": 0,
+        "review": 0,
+    },
     "owner_lookups": {"names": 0, "found": 0, "addresses": 0, "failed": 0},
 }
 
@@ -95,12 +102,14 @@ def test_health_checks_flag_empty_and_shrinking_sources(tmp_path):
     bad = {
         "tceq_discovery": {**GOOD["tceq_discovery"], "permits": 0},
         "comptroller_registry": {**GOOD["comptroller_registry"], "entries": 60},
+        "comptroller_abatements": {**GOOD["comptroller_abatements"], "agreements": 0},
         "owner_lookups": {"names": 5, "found": 0, "addresses": 0, "failed": 5},
     }
     report, _ = _run(engine, settings, bad)
     levels = {(c.source, c.level) for c in report.checks}
     assert ("tceq_discovery", "fail") in levels
     assert ("comptroller_registry", "warn") in levels
+    assert ("comptroller_abatements", "fail") in levels
     assert ("owner_lookups", "fail") in levels
     assert report.failed
 
@@ -118,10 +127,11 @@ def test_a_crashing_step_does_not_stop_the_others(tmp_path):
         collectors={
             "tceq_discovery": boom,
             "comptroller_registry": lambda: GOOD["comptroller_registry"],
+            "comptroller_abatements": lambda: GOOD["comptroller_abatements"],
             "owner_lookups": lambda: GOOD["owner_lookups"],
         },
     )
-    assert [s.ok for s in report.steps] == [False, True, True]
+    assert [s.ok for s in report.steps] == [False, True, True, True]
     assert any(c.level == "fail" and "portal redesigned" in c.message for c in report.checks)
 
 

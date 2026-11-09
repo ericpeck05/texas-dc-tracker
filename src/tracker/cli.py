@@ -13,6 +13,7 @@ import typer
 from sqlalchemy import func, select
 
 from tracker import jobs
+from tracker.collectors.comptroller.abatements import SOURCE as ABATEMENT_SOURCE
 from tracker.collectors.comptroller.data_center_registry import SOURCE as REGISTRY_SOURCE
 from tracker.collectors.comptroller.franchise_tax import SOURCE as FRANCHISE_SOURCE
 from tracker.collectors.comptroller.franchise_tax import (
@@ -87,8 +88,9 @@ def db_rebuild() -> None:
     engine = _engine()
     typer.echo(f"Rebuilding from {len(docs)} saved documents (old database: {backup})")
     # Registry snapshots after TCEQ documents, so they match against every TCEQ site as on a
-    # live pull; then owner lookups, which need the entities both create.
-    order = {REGISTRY_SOURCE: 1, FRANCHISE_SOURCE: 2}
+    # live pull; abatements after both, since they match on the entities those create; then
+    # owner lookups, which need every entity.
+    order = {REGISTRY_SOURCE: 1, ABATEMENT_SOURCE: 2, FRANCHISE_SOURCE: 3}
     docs.sort(key=lambda d: order.get(d[4], 0))
     for url, local_path, content_type, site_hint, source in docs:
         raw = Path(local_path)
@@ -101,6 +103,11 @@ def db_rebuild() -> None:
                     session, settings, raw.read_bytes(), content_type
                 )
             typer.echo(f"  registry  {len(entries)} entries, {len(report.new)} new ({raw.name})")
+            continue
+        if source == ABATEMENT_SOURCE:
+            with session_scope(engine) as session:
+                ab = jobs.import_abatement_file(session, settings, raw.read_bytes())
+            typer.echo(f"  abatements  {ab.data_centers} data centers, {len(ab.new)} new")
             continue
         if source == FRANCHISE_SOURCE:
             with session_scope(engine) as session:
@@ -167,6 +174,17 @@ def pull_comptroller(
     """Pull the Comptroller's registry of data centers certified for the sales tax exemption."""
     content = page.read_bytes() if page is not None else None
     jobs.pull_registry(get_settings(), _engine(), typer.echo, content=content)
+
+
+@pull_app.command("abatements")
+def pull_abatements(
+    csv_file: Annotated[
+        Path | None, typer.Option("--file", help="Import a saved copy of the CSV instead.")
+    ] = None,
+) -> None:
+    """Pull the Comptroller's Chapter 312 tax abatement agreements and keep data centers."""
+    content = csv_file.read_bytes() if csv_file is not None else None
+    jobs.pull_abatements(get_settings(), _engine(), typer.echo, content=content)
 
 
 @discover_app.command("tceq")
