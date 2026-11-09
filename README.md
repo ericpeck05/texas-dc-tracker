@@ -28,9 +28,22 @@ uv run tracker sites                        # sites, permits, companies, NSR ref
 uv run tracker sites --linked               # only sites with two or more kinds of signal
 uv run tracker equipment                    # current units per site, each counted once
 uv run tracker equipment --all              # every row from every document
+uv run tracker owners lookup                # franchise tax details and sister LLCs
+uv run tracker owners queue                 # entities still without a company
+uv run tracker ticker ORCL                  # one ticker's sites and supplied equipment
 uv run tracker db rebuild                   # re-extract saved documents after an upgrade
 uv run pytest
 ```
+
+Web app (ticker pages):
+
+```bash
+cd web && npm install && npm run build && cd ..
+uv run tracker serve                        # http://127.0.0.1:8000
+```
+
+For frontend work, run `tracker serve` and `npm run dev` in `web/` together; Vite proxies
+`/api` to port 8000.
 
 Data goes to `data/` (git-ignored). Override with `TRACKER_DATA_DIR` or `TRACKER_DB_URL`.
 There are no migrations yet: after a schema change, delete `data/tracker.db` and pull again.
@@ -97,6 +110,22 @@ Project LLCs ("Nolan Ranch DC Owner LLC") rarely say who is behind them. Three s
 Every lookup response is saved like any other raw document, so `db rebuild` replays them
 without downloading.
 
+## Ticker pages
+
+`tracker serve` runs a read-only JSON API (`/api/tickers`, `/api/tickers/{symbol}`, docs at
+`/api/docs`) and the React app in `web/`. The index lists every ticker with sites or
+supplied equipment. A ticker page has two sides:
+
+- **Sites (demand):** every site where an entity belonging to the company is owner, tenant,
+  operator, or permit holder, with confidence. Click a row for the chain of evidence: which
+  filing names the entity at the site, and why the entity belongs to the company. Generator
+  and turbine counts and MW are each site's netted inventory, linked to the permit they come
+  from. MW shown as "≥" means some units have no size in any document.
+- **Equipment supplied:** generators and turbines by makers under that ticker (Caterpillar,
+  Solar Turbines, and Perkins all count for CAT), each unit counted once, with permit and page.
+
+Low-confidence ties are listed as leads and left out of every total.
+
 ## How counts are netted
 
 Permits describe the same units several times and mix existing, new, and removed units.
@@ -136,6 +165,9 @@ src/tracker/
   registry_import.py     Comptroller registry: site matching and party links
   entities.py            entities, entity-to-site and company links, confidence rollup
   owners.py              franchise tax lookups, sister LLCs, hand findings
+  views/ticker.py        ticker page data: demand-side sites, supplied equipment
+  api.py                 FastAPI JSON API, serves web/dist
+web/                     React + Vite frontend
   collectors/comptroller/ Comptroller data center registry and franchise tax file
   reference/companies.py companies behind legal names, with tickers
   parsers/pdf.py         pdfplumber with PyMuPDF fallback

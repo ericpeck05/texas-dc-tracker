@@ -606,6 +606,61 @@ def owners_apply() -> None:
         typer.echo(f"  no entity named {name!r}")
 
 
+@app.command("serve")
+def serve(
+    port: Annotated[int, typer.Option(help="Port to listen on.")] = 8000,
+    host: Annotated[str, typer.Option(help="Interface; keep 127.0.0.1 unless you mean it.")] = (
+        "127.0.0.1"
+    ),
+) -> None:
+    """Serve the JSON API and the built web app (web/dist) at http://127.0.0.1:8000."""
+    import uvicorn
+
+    from tracker.api import create_app
+
+    uvicorn.run(create_app(), host=host, port=port)
+
+
+@app.command("ticker")
+def ticker(symbol: str) -> None:
+    """Sites and supplied equipment for one ticker, e.g. `tracker ticker ORCL`."""
+    from tracker.views.ticker import ticker_view
+
+    with session_scope(_engine()) as session:
+        view = ticker_view(session, symbol)
+    if view is None:
+        typer.echo(f"No company or supplier with ticker {symbol.upper()}", err=True)
+        raise typer.Exit(1)
+    d, s = view["demand"], view["supply"]
+    typer.echo(f"{view['symbol']} ({view['exchange']}): {', '.join(view['names'])}")
+    t = d["totals"]
+    typer.echo(
+        f"  demand: {t['sites']} sites ({t['high_confidence_sites']} high confidence), "
+        f"{t['generators']} generators, {t['turbines']} turbines, {t['mw']} MW"
+    )
+    for site in d["sites"]:
+        roles = ", ".join(sorted({x["role"] for x in site["ties"]}))
+        p = site["power"]
+        typer.echo(
+            f"    [{site['confidence']}] {site['name']} ({site['county'] or '?'}): {roles}; "
+            f"{p['generators']} gen, {p['turbines']} turb, {p['mw']} MW"
+        )
+    for site in d["leads"]:
+        typer.echo(f"    [lead] {site['name']}")
+    t = s["totals"]
+    if s["makers"]:
+        typer.echo(
+            f"  supply ({', '.join(s['makers'])}): {t['generators']} generators, "
+            f"{t['turbines']} turbines, {t['mw']} MW"
+        )
+        for site in s["sites"]:
+            typer.echo(
+                f"    {site['name']}: {site['generators']} gen, {site['turbines']} turb, "
+                f"{site['mw']} MW"
+            )
+    typer.echo("Not investment advice.")
+
+
 def main() -> None:
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(message)s")
     app()

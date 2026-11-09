@@ -1,0 +1,248 @@
+/* Black, dense, terminal-like. One accent (amber) only for new or changed items;
+   supply-side figures use a quiet teal so they read apart from demand. */
+:root {
+  --bg: #000;
+  --panel: #0b0b0b;
+  --line: #1f1f1f;
+  --text: #e8e8e8;
+  --dim: #8a8a8a;
+  --faint: #555;
+  --accent: #ffb000;
+  --supply: #7fc7b8;
+  --mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+  --sans: -apple-system, "Inter", "Helvetica Neue", Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 13px/1.4 var(--sans);
+}
+
+a {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--faint);
+  text-underline-offset: 2px;
+}
+a:hover {
+  text-decoration-color: var(--text);
+}
+
+.shell {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 16px 48px;
+}
+
+.topbar {
+  display: flex;
+  gap: 16px;
+  align-items: baseline;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.brand {
+  font: 600 13px var(--mono);
+  letter-spacing: 0.08em;
+  text-decoration: none;
+}
+
+.mono,
+.r {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+.r {
+  text-align: right;
+}
+.dim {
+  color: var(--dim);
+}
+.strong {
+  font-weight: 600;
+}
+.nowrap {
+  white-space: nowrap;
+}
+.pad {
+  padding: 16px 0;
+}
+.error {
+  color: #ff6b6b;
+  font-family: var(--mono);
+}
+.accent,
+.accent a {
+  color: var(--accent);
+}
+
+.page-title,
+.ticker-head h1 {
+  font: 600 22px var(--mono);
+  margin: 4px 0;
+}
+.lede {
+  max-width: 760px;
+  margin: 0 0 16px;
+}
+.exch {
+  font: 12px var(--mono);
+  margin-left: 8px;
+}
+.back {
+  font: 12px var(--mono);
+  color: var(--dim);
+  text-decoration: none;
+}
+.names {
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
+h2 {
+  font: 600 12px var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 28px 0 8px;
+}
+h2 .dim {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  font-family: var(--sans);
+}
+
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.stat {
+  padding: 10px 24px 10px 0;
+  min-width: 140px;
+}
+.stat-label {
+  color: var(--dim);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.stat-value {
+  font-size: 22px;
+}
+.stat-value.supply {
+  color: var(--supply);
+}
+.stat-sub {
+  font-size: 11px;
+}
+
+.grid {
+  width: 100%;
+  border-collapse: collapse;
+}
+.grid th {
+  text-align: left;
+  font-weight: 400;
+  color: var(--dim);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--line);
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+.grid th.r {
+  text-align: right;
+}
+.grid td {
+  padding: 3px 8px;
+  border-bottom: 1px solid #111;
+  vertical-align: top;
+}
+.grid tbody tr:hover {
+  background: var(--panel);
+}
+.grid tbody tr {
+  cursor: default;
+}
+.grid tr.clickable {
+  cursor: pointer;
+}
+.grid tr.new td:first-child {
+  color: var(--accent);
+}
+.grid tr.open {
+  background: var(--panel);
+}
+.caret {
+  color: var(--faint);
+  font-size: 10px;
+}
+.sym {
+  font: 600 13px var(--mono);
+  text-decoration: none;
+}
+.num-link {
+  text-decoration-style: dotted;
+}
+
+.conf {
+  font: 10px var(--mono);
+  text-transform: uppercase;
+  padding: 0 4px;
+  border: 1px solid;
+  border-radius: 2px;
+}
+.conf-high {
+  color: #000;
+  background: var(--text);
+  border-color: var(--text);
+}
+.conf-medium {
+  color: var(--text);
+  border-color: var(--dim);
+}
+.conf-low {
+  color: var(--dim);
+  border-style: dashed;
+  border-color: var(--faint);
+}
+
+.detail td {
+  background: var(--panel);
+  padding: 8px 8px 12px 26px;
+}
+.evidence .tie {
+  margin-bottom: 8px;
+}
+.evidence .step {
+  margin-left: 16px;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.disclaimer {
+  margin-top: 32px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  color: var(--dim);
+  font-size: 11px;
+}
+
+@media (max-width: 760px) {
+  .grid {
+    display: block;
+    overflow-x: auto;
+  }
+}

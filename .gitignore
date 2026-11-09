@@ -15,3 +15,5 @@ dist/
 tests/fixtures/tceq/local/
 data/*.db.bak
 data/*.csv
+web/node_modules/
+web/dist/
