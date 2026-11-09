@@ -187,6 +187,8 @@ class Document(Base):
     local_path: Mapped[str] = mapped_column(Text)
     content_type: Mapped[str | None] = mapped_column(String(128))
     size_bytes: Mapped[int] = mapped_column(Integer)
+    # Site name in the listing the document was found through (Records Online search).
+    listed_site_name: Mapped[str | None] = mapped_column(String(300))
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     signals: Mapped[list[Signal]] = relationship(back_populates="document")
@@ -240,12 +242,17 @@ class Equipment(Base):
     category: Mapped[EquipmentCategory] = mapped_column(_enum(EquipmentCategory))
     count: Mapped[int] = mapped_column(Integer)
     unit_size: Mapped[float | None] = mapped_column(Float)
-    unit: Mapped[str | None] = mapped_column(String(16))  # kW, MW, hp, gal
+    unit: Mapped[str | None] = mapped_column(String(16))  # kW, MW, hp, gal, bbl
     fuel: Mapped[str | None] = mapped_column(String(32))
     manufacturer: Mapped[str | None] = mapped_column(String(128))
     model: Mapped[str | None] = mapped_column(String(128))
     page: Mapped[int | None] = mapped_column(Integer)  # 1-based page in the source document
     snippet: Mapped[str | None] = mapped_column(Text)  # the sentence the numbers came from
+    # prose, count_change, or maert (one row per unit in the emission rates table)
+    method: Mapped[str | None] = mapped_column(String(32))
+    # total, existing, added, removed, or unknown: what the sentence says about these units
+    role: Mapped[str | None] = mapped_column(String(16))
+    epns: Mapped[str | None] = mapped_column(String(64))  # unit labels, e.g. GEN-1..GEN-3
 
     signal: Mapped[Signal] = relationship(back_populates="equipment")
     site: Mapped[Site | None] = relationship(back_populates="equipment")

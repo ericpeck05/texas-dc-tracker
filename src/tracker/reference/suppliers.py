@@ -26,7 +26,13 @@ def _ci(p: str) -> re.Pattern[str]:
 SUPPLIERS: tuple[Supplier, ...] = (
     Supplier(
         "Solar Turbines",
-        _ci(r"\bSolar\s+(?:Turbines\b|(?=Titan|Taurus|Mars|Centaur|Mercury))"),
+        # "Solar Titan 130", or a bare model family with its number ("Titan 350"), which
+        # matches zero-width so the model is read from the family name onward.
+        re.compile(
+            r"\b(?:Solar\s+(?:Turbines\b|(?=Titan|Taurus|Mars|Centaur|Mercury))"
+            r"|(?=(?:Titan|Taurus|Mars|Centaur|Mercury)\s+\d{2,3}\b))",
+            re.IGNORECASE,
+        ),
         "CAT",
         "NYSE",
         parent="Caterpillar",
@@ -58,6 +64,7 @@ SUPPLIERS: tuple[Supplier, ...] = (
         parent="Volkswagen",
     ),
     Supplier("Kawasaki", _ci(r"\bKawasaki\b"), "7012", "TSE"),
+    Supplier("Baudouin", _ci(r"\bBaudouin\b"), "2338", "HKEX", parent="Weichai Power"),
 )
 
 

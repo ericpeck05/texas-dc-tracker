@@ -10,3 +10,7 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 dist/
+
+# Real permits that name private individuals: run locally, never committed
+tests/fixtures/tceq/local/
+data/*.db.bak
