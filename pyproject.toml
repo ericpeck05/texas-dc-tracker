@@ -1,0 +1,37 @@
+[project]
+name = "texas-dc-tracker"
+version = "0.1.0"
+description = "Links public Texas data center filings to sites, owners, suppliers, and tickers."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.27",
+    "sqlalchemy>=2.0",
+    "typer>=0.12",
+    "pdfplumber>=0.11",
+    "pymupdf>=1.24",
+]
+
+[project.scripts]
+tracker = "tracker.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tracker"]
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

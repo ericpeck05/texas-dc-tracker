@@ -1,0 +1,12 @@
+# Raw downloads and the database never go in git
+data/raw/
+data/*.db
+data/*.db-journal
+.env
+
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+dist/
