@@ -72,9 +72,30 @@ one ("Microsoft Corporation" -> MSFT, high; "Vantage Data Centers Tx11, LLC" -> 
 medium). The same legal entity is one record however a filing spells it, and a name cut off
 at a line break joins its full name. Only organizations become entities: a name with no
 company marker (LLC, Inc., Association, ...) is skipped, so no person's name is stored.
-`tracker sites` lists each site's permit holders and companies. Permit holders with no known
-company (project LLCs such as "Nolan Ranch DC Owner LLC") are the starting list for owner
-lookups.
+`tracker sites` lists each site's permit holders and companies.
+
+## Owner lookups
+
+Project LLCs ("Nolan Ranch DC Owner LLC") rarely say who is behind them. Three steps:
+
+1. `tracker owners lookup` looks up every site entity with no confirmed company in the
+   Comptroller's [Active Franchise Taxpayers](https://data.texas.gov/dataset/Active-Franchise-Taxpayers/9cir-efmm)
+   file (official download, free): mailing address, SOS file number, formation date.
+2. It then lists the other taxpayers at each mailing address. Sister LLCs often share one
+   ("SF HOUC" and "SF HOUH" at an El Segundo PO box). They are linked as affiliates: medium
+   when the first word of the name matches, low otherwise. An address with more than 25
+   taxpayers is a registered agent's office and is ignored, unless the address is a known
+   company's own: two or more taxpayers there carry its name and none carries another known
+   company's (Polmer LLC at Meta's 1601 Willow Rd). That gives a medium company link.
+3. `tracker owners queue` lists what is still unknown and the next hand step, usually an
+   SOSDirect lookup by file number (paid, done by hand, never scraped). Record what you find
+   in `seeds/owner_findings.csv` with an evidence URL, then run `tracker owners apply`.
+   `--csv data/owner_queue.csv` writes the list; sites with an air permit come first.
+   Findings are re-applied on every `db rebuild`. Companies only: the file rejects names
+   that are not organizations, and no person's name belongs there.
+
+Every lookup response is saved like any other raw document, so `db rebuild` replays them
+without downloading.
 
 ## How counts are netted
 
@@ -114,7 +135,8 @@ src/tracker/
   rollup.py              current equipment per site, each unit counted once
   registry_import.py     Comptroller registry: site matching and party links
   entities.py            entities, entity-to-site and company links, confidence rollup
-  collectors/comptroller/ Comptroller data center registry
+  owners.py              franchise tax lookups, sister LLCs, hand findings
+  collectors/comptroller/ Comptroller data center registry and franchise tax file
   reference/companies.py companies behind legal names, with tickers
   parsers/pdf.py         pdfplumber with PyMuPDF fallback
   extract/tceq_air.py    rule-based equipment extraction

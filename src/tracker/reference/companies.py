@@ -99,7 +99,9 @@ COMPANIES: tuple[KnownCompany, ...] = (
     KnownCompany("QTS", D, None, None, _p(r"\bQTS\b|\bQuality\s+Technology\s+Services\b")),
     KnownCompany("CyrusOne", D, None, None, _p(r"\bCyrus\s?One\b")),
     KnownCompany("Compass Datacenters", D, None, None, _p(r"\bCompass\s+Datacenters\b")),
-    KnownCompany("Stream Data Centers", D, None, None, _p(r"\bStream\s+Data\s+Centers\b|\bSDC\b")),
+    # Not a bare "SDC": Sabey Data Centers files as "SDC Austin" too.
+    KnownCompany("Stream Data Centers", D, None, None, _p(r"\bStream\s+Data\s+Centers\b")),
+    KnownCompany("Sabey Data Centers", D, None, None, _p(r"\bSabey\b")),
     KnownCompany("DataBank", D, None, None, _p(r"\bData\s?bank\b|\bDB\s+Data\s+Center\b")),
     KnownCompany("Lancium", D, None, None, _p(r"\bLancium\b")),
     KnownCompany("Crusoe", D, None, None, _p(r"\bCrusoe\b"), ("Crusoe Energy Systems LLC",)),

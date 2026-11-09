@@ -277,6 +277,7 @@ class Entity(Base):
     registered_agent: Mapped[str | None] = mapped_column(String(300))
     address: Mapped[str | None] = mapped_column(Text)
     sos_file_number: Mapped[str | None] = mapped_column(String(32), index=True)
+    taxpayer_number: Mapped[str | None] = mapped_column(String(16), index=True)
     officers: Mapped[list[Any]] = mapped_column(default=list)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 

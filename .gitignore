@@ -14,3 +14,4 @@ dist/
 # Real permits that name private individuals: run locally, never committed
 tests/fixtures/tceq/local/
 data/*.db.bak
+data/*.csv

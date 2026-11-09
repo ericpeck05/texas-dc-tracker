@@ -15,14 +15,29 @@ from sqlalchemy import func, select
 
 from tracker.collectors.comptroller.data_center_registry import REGISTRY_URL, parse_registry
 from tracker.collectors.comptroller.data_center_registry import SOURCE as REGISTRY_SOURCE
+from tracker.collectors.comptroller.franchise_tax import SOURCE as FRANCHISE_SOURCE
+from tracker.collectors.comptroller.franchise_tax import (
+    Lookup,
+    address_query_url,
+    name_query_url,
+)
 from tracker.collectors.tceq.air_permits import Fetched, fetch_seeds, read_seeds
 from tracker.collectors.tceq.records_online import DEFAULT_KEYWORDS, RecordsOnline, plan_discovery
 from tracker.config import PILOT_COUNTIES, get_settings
 from tracker.db.models import Document, Equipment, LinkType, Signal, Site
 from tracker.db.session import init_db, make_engine, session_scope
-from tracker.entities import site_companies, site_entities
+from tracker.entities import entity_key, site_companies, site_entities
 from tracker.http import PoliteClient, RobotsDisallowed
 from tracker.ingest import IngestResult, ingest_tceq_air
+from tracker.owners import (
+    AGENT_OFFICE_MIN,
+    apply_findings,
+    apply_lookup,
+    lookup_targets,
+    owner_queue,
+    read_findings,
+    saved_lookups,
+)
 from tracker.registry_import import import_registry
 from tracker.rollup import site_inventory
 from tracker.storage import save_raw
@@ -33,7 +48,9 @@ pull_app = typer.Typer(help="Collect documents from a source.", no_args_is_help=
 discover_app = typer.Typer(help="Find new documents automatically.", no_args_is_help=True)
 app.add_typer(db_app, name="db")
 app.add_typer(pull_app, name="pull")
+owners_app = typer.Typer(help="Find who is behind the LLCs on filings.", no_args_is_help=True)
 app.add_typer(discover_app, name="discover")
+app.add_typer(owners_app, name="owners")
 
 
 def _engine():
@@ -84,8 +101,10 @@ def db_rebuild() -> None:
     path.replace(backup)
     engine = _engine()
     typer.echo(f"Rebuilding from {len(docs)} saved documents (old database: {backup})")
-    # Registry snapshots go last, so they match against every TCEQ site, as on a live pull.
-    docs.sort(key=lambda d: d[4] == REGISTRY_SOURCE)
+    # Registry snapshots after TCEQ documents, so they match against every TCEQ site as on a
+    # live pull; then owner lookups, which need the entities both create.
+    order = {REGISTRY_SOURCE: 1, FRANCHISE_SOURCE: 2}
+    docs.sort(key=lambda d: order.get(d[4], 0))
     for url, local_path, content_type, site_hint, source in docs:
         raw = Path(local_path)
         if not raw.exists():
@@ -98,6 +117,10 @@ def db_rebuild() -> None:
                 )
             typer.echo(f"  registry  {len(entries)} entries, {len(report.new)} new ({raw.name})")
             continue
+        if source == FRANCHISE_SOURCE:
+            with session_scope(engine) as session:
+                _store_lookup(session, settings, Lookup.from_bytes(raw.read_bytes()))
+            continue
         with session_scope(engine) as session:
             result = ingest_tceq_air(
                 session,
@@ -109,6 +132,10 @@ def db_rebuild() -> None:
                 site_name_hint=site_hint,
             )
             _report(result, url or raw.name)
+    with session_scope(engine) as session:
+        missing = apply_findings(session, read_findings())
+    for name in missing:
+        typer.echo(f"  owner finding for unknown entity: {name}")
 
 
 def _backfill_site_name(session, document: Document, listed_name: str | None) -> None:
@@ -422,6 +449,161 @@ def sites(
                 typer.echo(f"  companies: {'; '.join(parts)}")
         if linked:
             typer.echo(f"{shown} sites with two or more kinds of signal")
+
+
+def _store_lookup(session, settings, lookup: Lookup) -> str:
+    content = lookup.to_bytes()
+    stored = save_raw(
+        content,
+        source=FRANCHISE_SOURCE,
+        raw_dir=settings.raw_dir,
+        ext=".json",
+        content_type="application/json",
+    )
+    if session.scalar(select(Document).where(Document.sha256 == stored.sha256)) is None:
+        session.add(
+            Document(
+                source=FRANCHISE_SOURCE,
+                url=lookup.url,
+                sha256=stored.sha256,
+                local_path=str(stored.path),
+                content_type="application/json",
+                size_bytes=stored.size,
+            )
+        )
+        session.flush()
+    return apply_lookup(session, lookup)
+
+
+@owners_app.command("lookup")
+def owners_lookup(
+    refresh: Annotated[bool, typer.Option(help="Look up names already looked up.")] = False,
+    max_names: Annotated[int, typer.Option(help="Stop after this many name lookups.")] = 100,
+) -> None:
+    """Look up permit holders and registry parties in the franchise tax file (free, official).
+
+    Then look up who else uses each one's mailing address, to find sister LLCs.
+    """
+    settings = get_settings()
+    engine = _engine()
+    with PoliteClient(settings) as client, session_scope(engine) as session:
+        done = saved_lookups(session)
+        names = [
+            e.legal_name
+            for e in lookup_targets(session)
+            if refresh or ("name", entity_key(e.legal_name)) not in done
+        ][:max_names]
+        typer.echo(f"Looking up {len(names)} names")
+        for name in names:
+            url = name_query_url(name)
+            rows = client.get(url).json()
+            status = _store_lookup(session, settings, Lookup("name", name, url, rows))
+            typer.echo(f"  {name}: {status}")
+        done = saved_lookups(session)
+        addresses = set()
+        for e in lookup_targets(session):
+            lookup = done.get(("name", entity_key(e.legal_name)))
+            if not (e.taxpayer_number and lookup):
+                continue
+            for row in lookup.rows:
+                if row.get("taxpayer_number") == e.taxpayer_number:
+                    addresses.add((row.get("taxpayer_address", ""), row.get("taxpayer_zip", "")))
+        for address, zip_code in sorted(addresses):
+            query = f"{address}|{zip_code}"
+            if not refresh and ("address", query) in done:
+                continue
+            url = address_query_url(address, zip_code, limit=AGENT_OFFICE_MIN * 2)
+            rows = client.get(url).json()
+            status = _store_lookup(session, settings, Lookup("address", query, url, rows))
+            typer.echo(f"  {status}")
+
+
+@owners_app.command("queue")
+def owners_queue(
+    all_items: Annotated[
+        bool, typer.Option("--all", help="Include entities with a medium company link.")
+    ] = False,
+    csv_path: Annotated[
+        Path | None, typer.Option("--csv", help="Also write the queue to this CSV file.")
+    ] = None,
+) -> None:
+    """Entities on sites with no confirmed company, what is known, and the next hand step.
+
+    Sites with an air permit come first, then entities on the most sites."""
+    engine = _engine()
+    with session_scope(engine) as session:
+        items = owner_queue(session)
+        if csv_path is not None:
+            _write_queue_csv(csv_path, items, all_items)
+        shown = 0
+        for item in items:
+            if item.company_confidence is not None and not all_items:
+                continue
+            shown += 1
+            e = item.entity
+            sites = "; ".join(s.name for s in item.sites)
+            typer.echo(f"{e.legal_name}  [{item.status}]")
+            typer.echo(f"  sites: {sites}")
+            if e.taxpayer_number:
+                formed = e.formation_date.isoformat() if e.formation_date else "?"
+                office = "  (registered agent office)" if item.agent_office else ""
+                typer.echo(f"  SOS file {e.sos_file_number}, formed {formed}, {e.address}{office}")
+            for name, conf in item.affiliates:
+                typer.echo(f"  same address: {name} [{conf}]")
+            typer.echo(f"  next: {item.next_step}")
+        typer.echo(f"{shown} entities without a known company")
+
+
+def _write_queue_csv(path: Path, items, all_items: bool) -> None:
+    import csv
+
+    with path.open("w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(
+            [
+                "entity",
+                "status",
+                "air_permit",
+                "sites",
+                "sos_file_number",
+                "formed",
+                "address",
+                "agent_office",
+                "same_address",
+                "next_step",
+            ]
+        )
+        for i in items:
+            if i.company_confidence is not None and not all_items:
+                continue
+            e = i.entity
+            w.writerow(
+                [
+                    e.legal_name,
+                    i.status,
+                    i.has_air_permit,
+                    "; ".join(s.name for s in i.sites),
+                    e.sos_file_number or "",
+                    e.formation_date or "",
+                    e.address or "",
+                    i.agent_office,
+                    "; ".join(f"{n} [{c}]" for n, c in i.affiliates),
+                    i.next_step,
+                ]
+            )
+    typer.echo(f"Wrote {path}")
+
+
+@owners_app.command("apply")
+def owners_apply() -> None:
+    """Apply hand-researched owners from seeds/owner_findings.csv."""
+    engine = _engine()
+    findings = read_findings()
+    with session_scope(engine) as session:
+        missing = apply_findings(session, findings)
+    typer.echo(f"{len(findings)} findings applied")
+    for name in missing:
+        typer.echo(f"  no entity named {name!r}")
 
 
 def main() -> None:
