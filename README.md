@@ -25,6 +25,7 @@ uv run tracker discover tceq --dry-run      # search TCEQ Records Online, list w
 uv run tracker discover tceq                # fetch and ingest those documents
 uv run tracker pull comptroller             # Comptroller data center registry (owners, tenants)
 uv run tracker pull abatements              # Chapter 312 tax abatements for data centers
+uv run tracker pull tceq-registry           # TCEQ Central Registry: RNs, stormwater, air IDs
 uv run tracker sites                        # sites, permits, companies, NSR refs
 uv run tracker sites --linked               # only sites with two or more kinds of signal
 uv run tracker equipment                    # current units per site, each counted once
@@ -97,6 +98,26 @@ several sites with no place to decide leaves the signal unmatched with low-confi
 links. A match also fills in the county, which registry sites lack. Owners that look like
 individuals, and the local official who filed the report, are never stored.
 
+## TCEQ Central Registry
+
+`tracker pull tceq-registry` queries TCEQ's Central Registry files on data.texas.gov (five
+regional datasets, official open data, updated daily). Each row is one regulated site (RN)
+and one program ID at it. The pull asks for data center rows (data hosting industry code,
+or "data center" in the site name or description) plus every row for RNs already tracked.
+
+A site counts as a data center if it is named as one, or has a data hosting code and a known
+company as principal (the code alone also covers corporate server rooms and print shops).
+Concrete batch plants, substations, conduits, and laydown yards that carry a data center's
+name are skipped.
+
+Each RN is matched to a site by RN, then by distinctive name in a compatible county, then by
+principal (an entity tied to the site by another source; contractors and utilities never
+count), else it becomes its own site. Construction and industrial stormwater authorizations
+become STORMWATER signals; air NSR IDs not already known from a permit document become
+AIR_PERMIT signals. An active construction stormwater authorization from the last three
+years moves an early-stage site to under construction. Rows whose principal is an individual
+are dropped before the snapshot is saved.
+
 ## Permit holders
 
 Each TCEQ filing's applicant becomes an entity linked to its site as permit holder
@@ -133,7 +154,8 @@ without downloading.
 ## Weekly refresh
 
 `tracker refresh` runs TCEQ discovery, the Comptroller registry pull, the Chapter 312
-abatement pull, and owner lookups for new entities, in that order. A source that fails is recorded and the others still run. It
+abatement pull, the TCEQ Central Registry pull, and owner lookups for new entities, in that
+order. A source that fails is recorded and the others still run. It
 writes `data/refresh/<timestamp>.md` (and `.json`), copied to `data/refresh/latest.md`:
 
 - new filings, new sites, status changes, and companies newly tied to a site;
@@ -202,10 +224,11 @@ src/tracker/
   storage.py             raw file storage by hash
   ingest.py              document -> signal -> extraction -> equipment
   db/models.py           schema
-  collectors/tceq/       TCEQ collectors (seed list, Records Online discovery)
+  collectors/tceq/       TCEQ collectors (seed list, Records Online, Central Registry)
   rollup.py              current equipment per site, each unit counted once
   registry_import.py     Comptroller registry: site matching and party links
   abatement_import.py    Chapter 312 abatements: data center filter, site matching
+  central_registry_import.py  TCEQ Central Registry: RN matching, stormwater and air IDs
   entities.py            entities, entity-to-site and company links, confidence rollup
   owners.py              franchise tax lookups, sister LLCs, hand findings
   views/ticker.py        ticker page data: demand-side sites, supplied equipment

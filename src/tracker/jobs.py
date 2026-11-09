@@ -6,6 +6,7 @@ numbers the refresh report and health checks need.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date
@@ -15,6 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.engine import Engine
 
 from tracker.abatement_import import AbatementReport, import_abatements
+from tracker.central_registry_import import CRReport, import_central_registry
 from tracker.collectors.comptroller.abatements import DETAIL_URL as ABATEMENT_URL
 from tracker.collectors.comptroller.abatements import SOURCE as ABATEMENT_SOURCE
 from tracker.collectors.comptroller.abatements import parse_detail
@@ -29,9 +31,10 @@ from tracker.collectors.comptroller.franchise_tax import (
     address_query_url,
     name_query_url,
 )
+from tracker.collectors.tceq import central_registry as cr
 from tracker.collectors.tceq.records_online import DEFAULT_KEYWORDS, RecordsOnline, plan_discovery
 from tracker.config import PILOT_COUNTIES, Settings
-from tracker.db.models import Document
+from tracker.db.models import Document, Site
 from tracker.db.session import session_scope
 from tracker.entities import entity_key
 from tracker.http import PoliteClient, RobotsDisallowed
@@ -261,6 +264,69 @@ def pull_abatements(
             echo(f"  {m.how:<11} {m.abatement.record_id} {m.abatement.zone}  ->  {where}")
             if m.note:
                 echo(f"              {m.note}")
+        for line in report.review:
+            echo(f"  review  {line}")
+    return report
+
+
+# --- TCEQ Central Registry ------------------------------------------------------------
+
+
+def import_central_registry_file(session, settings: Settings, content: bytes) -> CRReport:
+    snap = cr.Snapshot.from_bytes(content)
+    doc = _snapshot(
+        session,
+        settings,
+        content,
+        source=cr.SOURCE,
+        url=cr.PAGE_URL,
+        ext=".json",
+        content_type="application/json",
+    )
+    return import_central_registry(session, cr.parse_rows(snap.rows), doc)
+
+
+def fetch_central_registry(settings: Settings, engine: Engine, echo: Echo) -> bytes:
+    """Data center rows from every region, plus every row for RNs already tracked."""
+    with session_scope(engine) as session:
+        rns = [rn for site in session.scalars(select(Site)) for rn in site.tceq_rns or []]
+    urls = cr.data_center_urls() + cr.rn_urls(rns)
+    rows: list[dict] = []
+    with PoliteClient(settings) as client:
+        for url in urls:
+            resp = client.get(url)
+            resp.raise_for_status()
+            batch = resp.json()
+            if len(batch) >= cr.ROW_LIMIT:
+                raise RuntimeError(f"Central Registry query hit the {cr.ROW_LIMIT} row limit")
+            dataset = url.split("/resource/")[1].split(".json")[0]
+            rows += [{**r, "_dataset": dataset} for r in cr.drop_individuals(batch)]
+    echo(f"{len(urls)} Central Registry queries, {len(rows)} rows")
+    # Same row from two queries (a data center that is also a tracked RN): keep one.
+    unique = {json.dumps(r, sort_keys=True): r for r in rows}
+    return cr.Snapshot(
+        urls, sorted(unique.values(), key=lambda r: json.dumps(r, sort_keys=True))
+    ).to_bytes()
+
+
+def pull_central_registry(
+    settings: Settings, engine: Engine, echo: Echo, *, content: bytes | None = None
+) -> CRReport:
+    if content is None:
+        content = fetch_central_registry(settings, engine, echo)
+    with session_scope(engine) as session:
+        report = import_central_registry_file(session, settings, content)
+        echo(
+            f"{report.entities} TCEQ sites in the pull, {report.data_centers} data centers: "
+            f"{len(report.matched)} newly placed, {report.new_signals} new signals, "
+            f"{report.changed} changed"
+        )
+        for m in report.matched:
+            echo(f"  {m.how:<11} {m.entity.rn} {m.entity.name}  ->  {m.site.name}")
+            if m.note:
+                echo(f"              {m.note}")
+        for name in report.to_construction:
+            echo(f"  under construction  {name}")
         for line in report.review:
             echo(f"  review  {line}")
     return report

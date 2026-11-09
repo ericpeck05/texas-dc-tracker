@@ -5,7 +5,8 @@ Steps, in order (a failing step is recorded and the rest still run):
 1. TCEQ Records Online discovery: new permits and documents.
 2. Comptroller data center registry: new, changed, and dropped entries.
 3. Comptroller Chapter 312 tax abatements: data center agreements.
-4. Franchise tax lookups for entities not looked up yet.
+4. TCEQ Central Registry: RNs, counties, stormwater and air authorizations.
+5. Franchise tax lookups for entities not looked up yet.
 
 What changed is found by id watermarks taken before the run: every site, signal, status
 change, and company link with a higher id is new. Health checks compare each source with
@@ -201,6 +202,15 @@ def health_checks(report: RefreshReport, previous: dict | None) -> list[Check]:
             if before.get("data_centers") and c["data_centers"] < before["data_centers"]:
                 msg = f"{c['data_centers']} data center agreements, was {before['data_centers']}"
                 checks.append(Check("warn", step.name, msg))
+        elif step.name == "tceq_central_registry":
+            if c["data_centers"] == 0:
+                checks.append(Check("fail", step.name, "no data center sites returned"))
+            elif (
+                before.get("data_centers")
+                and c["data_centers"] < DROP_WARN * before["data_centers"]
+            ):
+                msg = f"{c['data_centers']} data center sites, {before['data_centers']} last run"
+                checks.append(Check("warn", step.name, msg))
         elif step.name == "owner_lookups":
             if c["names"] and c["failed"] >= c["names"]:
                 checks.append(Check("fail", step.name, "every franchise tax lookup failed"))
@@ -233,6 +243,7 @@ def run_refresh(
         "tceq_discovery",
         "comptroller_registry",
         "comptroller_abatements",
+        "tceq_central_registry",
         "owner_lookups",
     ),
     out_dir: Path | None = None,
@@ -252,6 +263,9 @@ def run_refresh(
         ),
         "comptroller_abatements": lambda: _abatement_counts(
             jobs.pull_abatements(settings, engine, echo)
+        ),
+        "tceq_central_registry": lambda: _central_registry_counts(
+            jobs.pull_central_registry(settings, engine, echo)
         ),
         "owner_lookups": lambda: _owner_counts(
             jobs.lookup_owners(settings, engine, echo, max_names=200)
@@ -305,6 +319,17 @@ def _abatement_counts(r) -> dict:
     }
 
 
+def _central_registry_counts(r) -> dict:
+    return {
+        "sites": r.entities,
+        "data_centers": r.data_centers,
+        "placed": len(r.matched),
+        "new_signals": r.new_signals,
+        "changed": r.changed,
+        "review": len(r.review),
+    }
+
+
 def _owner_counts(r: jobs.OwnersResult) -> dict:
     return {
         "names": r.names,
@@ -336,7 +361,9 @@ def render_markdown(r: RefreshReport) -> str:
     lines.append(f"## New filings ({len(r.new_signals)})")
     for sig in r.new_signals:
         where = sig["site"] or "unmatched"
-        word = {"incentive": "registration", "approval": "agreement"}.get(sig["type"], "permit")
+        word = {"incentive": "registration", "approval": "agreement", "stormwater": "permit"}.get(
+            sig["type"], "permit"
+        )
         permit = f" {word} {sig['permit']}" if sig["permit"] else ""
         eq = f", {sig['equipment_rows']} equipment rows" if sig["equipment_rows"] else ""
         link = f" [document]({sig['url']})" if sig["url"] else ""
