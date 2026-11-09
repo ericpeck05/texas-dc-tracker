@@ -76,6 +76,7 @@ class RecordType(StrEnum):
 class LinkType(StrEnum):
     OWNS = "owns"
     OCCUPIES = "occupies"
+    OPERATES = "operates"
     DEVELOPS = "develops"
     FILED_BY = "filed_by"
     PARENT_OF = "parent_of"
@@ -88,6 +89,7 @@ class LinkMethod(StrEnum):
     FILING = "filing"
     ADDRESS_MATCH = "address_match"
     AGENT_MATCH = "agent_match"
+    NAME_MATCH = "name_match"  # same legal or project name in two filings
     NEWS = "news"
     LLM = "llm"
     MANUAL = "manual"

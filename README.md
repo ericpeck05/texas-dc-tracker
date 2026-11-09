@@ -23,7 +23,9 @@ uv run tracker ingest path/to/permit.pdf    # files you downloaded by hand
 uv run tracker pull tceq                    # URLs listed in seeds/tceq_air.csv
 uv run tracker discover tceq --dry-run      # search TCEQ Records Online, list what it would fetch
 uv run tracker discover tceq                # fetch and ingest those documents
-uv run tracker sites                        # sites, permits, unit groups, NSR refs
+uv run tracker pull comptroller             # Comptroller data center registry (owners, tenants)
+uv run tracker sites                        # sites, permits, companies, NSR refs
+uv run tracker sites --linked               # only sites with two or more kinds of signal
 uv run tracker equipment                    # current units per site, each counted once
 uv run tracker equipment --all              # every row from every document
 uv run tracker db rebuild                   # re-extract saved documents after an upgrade
@@ -47,6 +49,20 @@ document is parsed. Concrete batch plants named after a data center are skipped.
 
 After an extractor or schema change, `tracker db rebuild` re-extracts every saved document
 into a fresh database without downloading anything.
+
+## Comptroller registry
+
+`tracker pull comptroller` reads the Texas Comptroller's
+[list of data centers certified for the state sales tax exemption](https://comptroller.texas.gov/taxes/data-centers/data-center-lists.php):
+each entry's owner, occupant, and operator. Every party becomes an entity linked to the
+site, and known companies are tied to their tickers (exact legal names such as
+"Oracle America Cloud Services, LLC" are high confidence; brand names in an LLC's name are
+medium). The registry gives no location, so an entry joins an existing site only on a unique
+entity match (a party is also a TCEQ permit holder there), a unique name match, or as a later
+phase of a matched site that shares a party. Those company links are medium confidence,
+because the tie between the registry entry and the site is. Weaker candidates are saved as
+low-confidence links for review, never merged. Rerunning reports new, changed, and dropped
+entries.
 
 ## How counts are netted
 
@@ -84,6 +100,9 @@ src/tracker/
   db/models.py           schema
   collectors/tceq/       TCEQ collectors (seed list, Records Online discovery)
   rollup.py              current equipment per site, each unit counted once
+  registry_import.py     Comptroller registry: entities, site matching, company links
+  collectors/comptroller/ Comptroller data center registry
+  reference/companies.py companies behind legal names, with tickers
   parsers/pdf.py         pdfplumber with PyMuPDF fallback
   extract/tceq_air.py    rule-based equipment extraction
   reference/suppliers.py manufacturers and tickers

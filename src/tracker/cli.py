@@ -13,6 +13,8 @@ import httpx
 import typer
 from sqlalchemy import func, select
 
+from tracker.collectors.comptroller.data_center_registry import REGISTRY_URL, parse_registry
+from tracker.collectors.comptroller.data_center_registry import SOURCE as REGISTRY_SOURCE
 from tracker.collectors.tceq.air_permits import Fetched, fetch_seeds, read_seeds
 from tracker.collectors.tceq.records_online import DEFAULT_KEYWORDS, RecordsOnline, plan_discovery
 from tracker.config import PILOT_COUNTIES, get_settings
@@ -20,7 +22,9 @@ from tracker.db.models import Document, Equipment, Signal, Site
 from tracker.db.session import init_db, make_engine, session_scope
 from tracker.http import PoliteClient, RobotsDisallowed
 from tracker.ingest import IngestResult, ingest_tceq_air
+from tracker.registry_import import import_registry, site_companies
 from tracker.rollup import site_inventory
+from tracker.storage import save_raw
 
 app = typer.Typer(help="Texas data center tracker.", no_args_is_help=True)
 db_app = typer.Typer(help="Database commands.", no_args_is_help=True)
@@ -142,6 +146,65 @@ def pull_tceq(
     if failures == len(seed_list) and seed_list:
         typer.echo("Every request failed. Check network access to tceq.texas.gov.", err=True)
         raise typer.Exit(1)
+
+
+@pull_app.command("comptroller")
+def pull_comptroller(
+    page: Annotated[
+        Path | None, typer.Option(help="Parse a saved copy of the page instead of fetching.")
+    ] = None,
+) -> None:
+    """Pull the Comptroller's registry of data centers certified for the sales tax exemption."""
+    settings = get_settings()
+    engine = _engine()
+    if page is not None:
+        content, content_type = page.read_bytes(), "text/html"
+    else:
+        with PoliteClient(settings) as client:
+            resp = client.get(REGISTRY_URL)
+        content, content_type = resp.content, resp.headers.get("content-type")
+    stored = save_raw(
+        content,
+        source=REGISTRY_SOURCE,
+        raw_dir=settings.raw_dir,
+        ext=".html",
+        content_type=content_type,
+    )
+    entries = parse_registry(content.decode("utf-8", errors="replace"))
+    with session_scope(engine) as session:
+        doc = session.scalar(select(Document).where(Document.sha256 == stored.sha256))
+        if doc is None:
+            doc = Document(
+                source=REGISTRY_SOURCE,
+                url=REGISTRY_URL,
+                sha256=stored.sha256,
+                local_path=str(stored.path),
+                content_type=content_type,
+                size_bytes=stored.size,
+            )
+            session.add(doc)
+            session.flush()
+        report = import_registry(session, entries, doc)
+        typer.echo(
+            f"{len(entries)} registry entries: {len(report.new)} new, "
+            f"{len(report.changed)} changed, {report.unchanged} unchanged, "
+            f"{len(report.dropped)} no longer listed"
+        )
+        for m in report.new:
+            if m.how == "new":
+                continue
+            typer.echo(f"  match ({m.how}, {m.confidence})  {m.entry.name}  ->  {m.site.name}")
+            typer.echo(f"        {m.note}")
+        created = sum(1 for m in report.new if m.how == "new")
+        typer.echo(f"  {created} entries became new sites (no existing site matched)")
+        for e in report.changed:
+            typer.echo(f"  changed  {e.registration_id} {e.name}")
+        for sig in report.dropped:
+            typer.echo(f"  dropped  {sig.permit_number} {sig.title}")
+        if report.review:
+            typer.echo(f"  {len(report.review)} possible matches left for review (low confidence):")
+            for line in report.review:
+                typer.echo(f"    {line}")
 
 
 @discover_app.command("tceq")
@@ -287,16 +350,25 @@ def equipment(
 
 
 @app.command("sites")
-def sites() -> None:
-    """List sites with their permits, equipment rows, unit groups, and NSR permits to fetch."""
+def sites(
+    linked: Annotated[
+        bool, typer.Option("--linked", help="Only sites with two or more kinds of signal.")
+    ] = False,
+) -> None:
+    """List sites: sources, permits, equipment rows, companies, and NSR permits to fetch."""
     engine = _engine()
     with session_scope(engine) as session:
         all_sites = session.scalars(select(Site).order_by(Site.county, Site.name)).all()
         if not all_sites:
             typer.echo("No sites yet. Run `tracker ingest` or `tracker pull tceq`.")
             return
+        shown = 0
         for site in all_sites:
             signals = session.scalars(select(Signal).where(Signal.site_id == site.id)).all()
+            kinds = sorted({str(s.type) for s in signals})
+            if linked and len(kinds) < 2:
+                continue
+            shown += 1
             permits = sorted({s.permit_number for s in signals if s.permit_number})
             n_equipment = session.scalar(
                 select(func.count()).select_from(Equipment).where(Equipment.site_id == site.id)
@@ -314,6 +386,16 @@ def sites() -> None:
                 typer.echo(f"  unit groups (counts unknown): {', '.join(sorted(groups))}")
             if nsr:
                 typer.echo(f"  NSR permits referenced: {', '.join(sorted(nsr))}")
+            typer.echo(f"  signals: {', '.join(kinds) or '-'}")
+            companies = site_companies(session, site)
+            if companies:
+                parts = [
+                    f"{role} {name}" + (f" ({ticker})" if ticker else "") + f" [{conf}]"
+                    for role, name, ticker, conf in companies
+                ]
+                typer.echo(f"  companies: {'; '.join(parts)}")
+        if linked:
+            typer.echo(f"{shown} sites with two or more kinds of signal")
 
 
 def main() -> None:
