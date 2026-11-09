@@ -18,11 +18,12 @@ from tracker.collectors.comptroller.data_center_registry import SOURCE as REGIST
 from tracker.collectors.tceq.air_permits import Fetched, fetch_seeds, read_seeds
 from tracker.collectors.tceq.records_online import DEFAULT_KEYWORDS, RecordsOnline, plan_discovery
 from tracker.config import PILOT_COUNTIES, get_settings
-from tracker.db.models import Document, Equipment, Signal, Site
+from tracker.db.models import Document, Equipment, LinkType, Signal, Site
 from tracker.db.session import init_db, make_engine, session_scope
+from tracker.entities import site_companies, site_entities
 from tracker.http import PoliteClient, RobotsDisallowed
 from tracker.ingest import IngestResult, ingest_tceq_air
-from tracker.registry_import import import_registry, site_companies
+from tracker.registry_import import import_registry
 from tracker.rollup import site_inventory
 from tracker.storage import save_raw
 
@@ -77,16 +78,25 @@ def db_rebuild() -> None:
         cols = {row[1] for row in old.execute("PRAGMA table_info(document)")}
         hint = "listed_site_name" if "listed_site_name" in cols else "NULL"
         docs = old.execute(
-            f"SELECT url, local_path, content_type, {hint} FROM document ORDER BY id"
+            f"SELECT url, local_path, content_type, {hint}, source FROM document ORDER BY id"
         ).fetchall()
     backup = path.with_name(path.name + ".bak")
     path.replace(backup)
     engine = _engine()
     typer.echo(f"Rebuilding from {len(docs)} saved documents (old database: {backup})")
-    for url, local_path, content_type, site_hint in docs:
+    # Registry snapshots go last, so they match against every TCEQ site, as on a live pull.
+    docs.sort(key=lambda d: d[4] == REGISTRY_SOURCE)
+    for url, local_path, content_type, site_hint, source in docs:
         raw = Path(local_path)
         if not raw.exists():
             typer.echo(f"  MISSING  {raw} ({url})")
+            continue
+        if source == REGISTRY_SOURCE:
+            with session_scope(engine) as session:
+                report, entries = _import_registry_page(
+                    session, settings, raw.read_bytes(), content_type
+                )
+            typer.echo(f"  registry  {len(entries)} entries, {len(report.new)} new ({raw.name})")
             continue
         with session_scope(engine) as session:
             result = ingest_tceq_air(
@@ -148,6 +158,30 @@ def pull_tceq(
         raise typer.Exit(1)
 
 
+def _import_registry_page(session, settings, content: bytes, content_type: str | None):
+    stored = save_raw(
+        content,
+        source=REGISTRY_SOURCE,
+        raw_dir=settings.raw_dir,
+        ext=".html",
+        content_type=content_type,
+    )
+    entries = parse_registry(content.decode("utf-8", errors="replace"))
+    doc = session.scalar(select(Document).where(Document.sha256 == stored.sha256))
+    if doc is None:
+        doc = Document(
+            source=REGISTRY_SOURCE,
+            url=REGISTRY_URL,
+            sha256=stored.sha256,
+            local_path=str(stored.path),
+            content_type=content_type,
+            size_bytes=stored.size,
+        )
+        session.add(doc)
+        session.flush()
+    return import_registry(session, entries, doc), entries
+
+
 @pull_app.command("comptroller")
 def pull_comptroller(
     page: Annotated[
@@ -163,28 +197,8 @@ def pull_comptroller(
         with PoliteClient(settings) as client:
             resp = client.get(REGISTRY_URL)
         content, content_type = resp.content, resp.headers.get("content-type")
-    stored = save_raw(
-        content,
-        source=REGISTRY_SOURCE,
-        raw_dir=settings.raw_dir,
-        ext=".html",
-        content_type=content_type,
-    )
-    entries = parse_registry(content.decode("utf-8", errors="replace"))
     with session_scope(engine) as session:
-        doc = session.scalar(select(Document).where(Document.sha256 == stored.sha256))
-        if doc is None:
-            doc = Document(
-                source=REGISTRY_SOURCE,
-                url=REGISTRY_URL,
-                sha256=stored.sha256,
-                local_path=str(stored.path),
-                content_type=content_type,
-                size_bytes=stored.size,
-            )
-            session.add(doc)
-            session.flush()
-        report = import_registry(session, entries, doc)
+        report, entries = _import_registry_page(session, settings, content, content_type)
         typer.echo(
             f"{len(entries)} registry entries: {len(report.new)} new, "
             f"{len(report.changed)} changed, {report.unchanged} unchanged, "
@@ -349,6 +363,9 @@ def equipment(
             typer.echo("No equipment yet. Run `tracker ingest` or `tracker pull tceq`.")
 
 
+ROLE_LABEL = {LinkType.FILED_BY: "permit holder"}
+
+
 @app.command("sites")
 def sites(
     linked: Annotated[
@@ -387,10 +404,19 @@ def sites(
             if nsr:
                 typer.echo(f"  NSR permits referenced: {', '.join(sorted(nsr))}")
             typer.echo(f"  signals: {', '.join(kinds) or '-'}")
+            holders = [
+                f"{name} [{conf}]"
+                for role, name, conf in site_entities(session, site)
+                if role == LinkType.FILED_BY
+            ]
+            if holders:
+                typer.echo(f"  permit holders: {'; '.join(holders)}")
             companies = site_companies(session, site)
             if companies:
                 parts = [
-                    f"{role} {name}" + (f" ({ticker})" if ticker else "") + f" [{conf}]"
+                    f"{ROLE_LABEL.get(role, role)} {name}"
+                    + (f" ({ticker})" if ticker else "")
+                    + f" [{conf}]"
                     for role, name, ticker, conf in companies
                 ]
                 typer.echo(f"  companies: {'; '.join(parts)}")

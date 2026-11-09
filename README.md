@@ -64,6 +64,18 @@ because the tie between the registry entry and the site is. Weaker candidates ar
 low-confidence links for review, never merged. Rerunning reports new, changed, and dropped
 entries.
 
+## Permit holders
+
+Each TCEQ filing's applicant becomes an entity linked to its site as permit holder
+(high confidence: the filing names it for that site), and to a known company when its name is
+one ("Microsoft Corporation" -> MSFT, high; "Vantage Data Centers Tx11, LLC" -> Vantage,
+medium). The same legal entity is one record however a filing spells it, and a name cut off
+at a line break joins its full name. Only organizations become entities: a name with no
+company marker (LLC, Inc., Association, ...) is skipped, so no person's name is stored.
+`tracker sites` lists each site's permit holders and companies. Permit holders with no known
+company (project LLCs such as "Nolan Ranch DC Owner LLC") are the starting list for owner
+lookups.
+
 ## How counts are netted
 
 Permits describe the same units several times and mix existing, new, and removed units.
@@ -100,7 +112,8 @@ src/tracker/
   db/models.py           schema
   collectors/tceq/       TCEQ collectors (seed list, Records Online discovery)
   rollup.py              current equipment per site, each unit counted once
-  registry_import.py     Comptroller registry: entities, site matching, company links
+  registry_import.py     Comptroller registry: site matching and party links
+  entities.py            entities, entity-to-site and company links, confidence rollup
   collectors/comptroller/ Comptroller data center registry
   reference/companies.py companies behind legal names, with tickers
   parsers/pdf.py         pdfplumber with PyMuPDF fallback

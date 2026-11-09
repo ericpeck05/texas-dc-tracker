@@ -38,10 +38,8 @@ from tracker.collectors.comptroller.data_center_registry import (
     RegistryEntry,
 )
 from tracker.db.models import (
-    Company,
     Confidence,
     Document,
-    Entity,
     Extraction,
     Link,
     LinkMethod,
@@ -51,7 +49,13 @@ from tracker.db.models import (
     SignalType,
     Site,
     SiteStatus,
-    Ticker,
+)
+from tracker.entities import (  # noqa: F401  (entity_key, site_companies re-exported)
+    EntityBook,
+    add_link,
+    entity_key,
+    link_party,
+    site_companies,
 )
 from tracker.reference.companies import find_company
 
@@ -59,19 +63,9 @@ EXTRACTOR = "comptroller_registry_table"
 EXTRACTOR_VERSION = "0.1.0"
 ROLE_LINK = {"owner": LinkType.OWNS, "occupant": LinkType.OCCUPIES, "operator": LinkType.OPERATES}
 
-_SUFFIXES = {"llc", "l", "c", "inc", "incorporated", "corp", "corporation", "co", "company"}
-_SUFFIXES |= {"lp", "p", "ltd", "pbc", "plc", "the"}
 _GENERIC = {"data", "center", "centers", "datacenter", "datacenters", "campus", "project"}
 _GENERIC |= {"site", "the", "and", "of", "corporation", "llc", "inc", "lp"}
 _ROMAN = {"i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii"}
-
-
-def entity_key(name: str) -> str:
-    """'Abilene Dc 1, LLC' and 'Abilene DC 1 LLC' -> 'abilene dc 1'."""
-    words = re.sub(r"[^a-z0-9]+", " ", name.lower().replace("&", " and ")).split()
-    while words and words[-1] in _SUFFIXES:
-        words.pop()
-    return " ".join(words)
 
 
 def name_tokens(name: str) -> frozenset[str]:
@@ -130,46 +124,6 @@ class _SiteIndex:
                 self.by_name[tokens].add(site.id)
 
 
-def _get_entity(session: Session, name: str, cache: dict[str, Entity]) -> Entity:
-    if name in cache:
-        return cache[name]
-    entity = session.scalar(select(Entity).where(Entity.legal_name == name))
-    if entity is None:
-        m = re.search(r"\b(LLC|L\.L\.C\.|Inc\.?|Corporation|Corp\.?|L\.?P\.?|Ltd\.?|PBC)\s*$", name)
-        entity = Entity(legal_name=name, entity_type=m.group(1).rstrip(".") if m else None)
-        session.add(entity)
-        session.flush()
-    cache[name] = entity
-    return entity
-
-
-def _get_company(session: Session, name: str, role, ticker, exchange) -> Company:
-    company = session.scalar(select(Company).where(Company.name == name))
-    if company is None:
-        company = Company(name=name, role=role, is_public=ticker is not None)
-        session.add(company)
-        session.flush()
-        if ticker:
-            session.add(Ticker(company_id=company.id, symbol=ticker, exchange=exchange))
-    return company
-
-
-def _add_link(session: Session, **kw) -> bool:
-    """Append a link unless the same one exists (links are append-only, not duplicated)."""
-    exists = session.scalar(
-        select(Link.id).where(
-            *(getattr(Link, k) == v for k, v in kw.items() if k in _LINK_KEY_FIELDS)
-        )
-    )
-    if exists:
-        return False
-    session.add(Link(**kw))
-    return True
-
-
-_LINK_KEY_FIELDS = ("from_type", "from_id", "to_type", "to_id", "link_type", "method", "confidence")
-
-
 def _is_big_tenant(name: str) -> bool:
     found = find_company(name)
     return bool(found and found[0].ticker)
@@ -220,7 +174,7 @@ def import_registry(
 ) -> ImportReport:
     report = ImportReport()
     index = _SiteIndex(session)
-    entity_cache: dict[str, Entity] = {}
+    book = EntityBook(session)
     existing = {
         s.permit_number: s for s in session.scalars(select(Signal).where(Signal.source == SOURCE))
     }
@@ -299,7 +253,7 @@ def import_registry(
             )
             session.flush()
             if confidence is not None:
-                _add_link(
+                add_link(
                     session,
                     from_type=RecordType.SIGNAL,
                     from_id=signal.id,
@@ -314,7 +268,7 @@ def import_registry(
             for other in weaker:
                 if other.id == site.id:
                     continue
-                if _add_link(
+                if add_link(
                     session,
                     from_type=RecordType.SITE,
                     from_id=site.id,
@@ -333,7 +287,7 @@ def import_registry(
         registry_sites[site.id] |= {
             entity_key(p.name) for p in entry.parties if not _is_big_tenant(p.name)
         }
-        _link_parties(session, entry, site, entity_cache, site_confidence)
+        _link_parties(session, entry, site, book, site_confidence)
 
     report.dropped = [s for reg_id, s in existing.items() if reg_id not in seen]
     session.flush()
@@ -344,71 +298,19 @@ def _link_parties(
     session: Session,
     entry: RegistryEntry,
     site: Site,
-    cache: dict[str, Entity],
+    book: EntityBook,
     site_confidence: Confidence,
 ) -> None:
     """The registry names each party directly (high), but if the entry was matched to a site
     found elsewhere, the party's tie to that site is only as strong as the match."""
     for party in entry.parties:
-        entity = _get_entity(session, party.name, cache)
-        _add_link(
+        link_party(
             session,
-            from_type=RecordType.ENTITY,
-            from_id=entity.id,
-            to_type=RecordType.SITE,
-            to_id=site.id,
-            link_type=ROLE_LINK[party.role],
-            method=LinkMethod.FILING,
-            confidence=site_confidence,
+            book,
+            party.name,
+            site,
+            ROLE_LINK[party.role],
+            site_confidence,
             evidence_url=REGISTRY_URL,
             note=f"{party.registration_number or entry.registration_id} ({entry.name})",
         )
-        found = find_company(party.name)
-        if found:
-            known, exact = found
-            company = _get_company(session, known.name, known.role, known.ticker, known.exchange)
-            _add_link(
-                session,
-                from_type=RecordType.COMPANY,
-                from_id=company.id,
-                to_type=RecordType.ENTITY,
-                to_id=entity.id,
-                link_type=LinkType.PARENT_OF,
-                method=LinkMethod.NAME_MATCH,
-                confidence=Confidence.HIGH if exact else Confidence.MEDIUM,
-                note=(
-                    f"'{party.name}' is a legal name {known.name} files under"
-                    if exact
-                    else f"'{party.name}' carries the {known.name} name"
-                ),
-            )
-
-
-def site_companies(session: Session, site: Site) -> list[tuple[str, str, str | None, str]]:
-    """(role, company, ticker, confidence) for every company tied to a site via entities.
-
-    Confidence is the weaker of the entity-to-site and company-to-entity links."""
-    rank = {Confidence.HIGH: 2, Confidence.MEDIUM: 1, Confidence.LOW: 0}
-    out = {}
-    entity_links = session.scalars(
-        select(Link).where(
-            Link.to_type == RecordType.SITE,
-            Link.to_id == site.id,
-            Link.from_type == RecordType.ENTITY,
-        )
-    ).all()
-    for el in entity_links:
-        for cl in session.scalars(
-            select(Link).where(
-                Link.to_type == RecordType.ENTITY,
-                Link.to_id == el.from_id,
-                Link.from_type == RecordType.COMPANY,
-            )
-        ):
-            company = session.get(Company, cl.from_id)
-            ticker = company.tickers[0].symbol if company.tickers else None
-            conf = min(el.confidence, cl.confidence, key=rank.get)
-            key = (str(el.link_type), company.name)
-            if key not in out or rank[conf] > rank[Confidence(out[key][3])]:
-                out[key] = (str(el.link_type), company.name, ticker, str(conf))
-    return sorted(out.values())

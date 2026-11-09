@@ -2,6 +2,8 @@
 
 Site matching here is only the exact passes: TCEQ RN number, then permit number (a later
 filing under the same permit). A document with neither match gets a new Site.
+The applicant becomes an Entity tied to the site (FILED_BY, high confidence: the filing
+names it for this site), and to a known company if its name is one (tracker.entities).
 Fuzzy matching (name, address, coordinates), merging duplicate sites, and owner unmasking
 belong to the linking engine (Phase 2).
 """
@@ -16,14 +18,17 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from tracker.db.models import (
+    Confidence,
     Document,
     Equipment,
     Extraction,
+    LinkType,
     Signal,
     SignalType,
     Site,
     SiteStatus,
 )
+from tracker.entities import EntityBook, link_party
 from tracker.extract.tceq_air import EXTRACTOR_NAME, EXTRACTOR_VERSION, extract_air_permit
 from tracker.parsers.pdf import document_to_text
 from tracker.storage import StoredFile, guess_extension, save_raw
@@ -191,4 +196,19 @@ def ingest_tceq_air(
             )
         )
     session.flush()
+    if parsed.applicant:
+        # The applicant is named on the filing for this site: a direct, high-confidence tie.
+        kind = (parsed.document_kind or "filing").replace("_", " ")
+        status = ", withdrawn" if parsed.withdrawn else ""
+        link_party(
+            session,
+            EntityBook(session),
+            parsed.applicant,
+            site,
+            LinkType.FILED_BY,
+            Confidence.HIGH,
+            evidence_url=url,
+            note=f"applicant on TCEQ permit {parsed.permit_number or '?'} ({kind}{status})",
+        )
+        session.flush()
     return IngestResult(doc, signal, created=True, site=site)

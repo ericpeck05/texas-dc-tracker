@@ -31,11 +31,12 @@ def _p(regex: str) -> re.Pattern[str]:
     return re.compile(regex, re.IGNORECASE)
 
 
-H, N, R, D, OTHER = (
+H, N, R, D, S, OTHER = (
     CompanyRole.HYPERSCALER,
     CompanyRole.NEOCLOUD,
     CompanyRole.REIT,
     CompanyRole.DEVELOPER,
+    CompanyRole.SUPPLIER,
     CompanyRole.OTHER,
 )
 
@@ -81,7 +82,18 @@ COMPANIES: tuple[KnownCompany, ...] = (
     KnownCompany("Equinix", R, "EQIX", "NASDAQ", _p(r"\bEquinix\b")),
     KnownCompany("Iron Mountain", R, "IRM", "NYSE", _p(r"\bIron\s+Mountain\b")),
     KnownCompany("COPT Defense Properties", R, "CDP", "NYSE", _p(r"\bCOPT\b")),
-    KnownCompany("NTT", D, "9432", "TSE", _p(r"\bNTT\b")),
+    KnownCompany(
+        "NTT", D, "9432", "TSE", _p(r"\bNTT\b"), ("NTT Global Data Centers Americas, Inc.",)
+    ),
+    # Enterprises that build their own data centers.
+    KnownCompany(
+        "Bank of America",
+        OTHER,
+        "BAC",
+        "NYSE",
+        _p(r"\bBank\s+of\s+America\b"),
+        ("Bank of America, National Association", "Bank of America Corporation"),
+    ),
     # Private developers and AI labs: no ticker, but grouping their sites still helps.
     KnownCompany("Vantage Data Centers", D, None, None, _p(r"\bVantage\s+Data\s+Centers\b")),
     KnownCompany("QTS", D, None, None, _p(r"\bQTS\b|\bQuality\s+Technology\s+Services\b")),
@@ -90,10 +102,12 @@ COMPANIES: tuple[KnownCompany, ...] = (
     KnownCompany("Stream Data Centers", D, None, None, _p(r"\bStream\s+Data\s+Centers\b|\bSDC\b")),
     KnownCompany("DataBank", D, None, None, _p(r"\bData\s?bank\b|\bDB\s+Data\s+Center\b")),
     KnownCompany("Lancium", D, None, None, _p(r"\bLancium\b")),
-    KnownCompany("Crusoe", D, None, None, _p(r"\bCrusoe\b")),
+    KnownCompany("Crusoe", D, None, None, _p(r"\bCrusoe\b"), ("Crusoe Energy Systems LLC",)),
     KnownCompany(
         "Nexus Data Centers", D, None, None, _p(r"\bNexus\s+(?:Data|Hubbard|Operations)\b")
     ),
+    # On-site power: gas generator microgrids that run as the site's power plant.
+    KnownCompany("Enchanted Rock", S, None, None, _p(r"\bEnchanted\s+Rock\b")),
     KnownCompany("Poolside", OTHER, None, None, _p(r"\bPoolside\b")),
     KnownCompany("Anthropic", OTHER, None, None, _p(r"\bAnthropic\b"), ("Anthropic, PBC",)),
 )
