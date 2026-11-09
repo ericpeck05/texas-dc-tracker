@@ -174,11 +174,30 @@ macOS keeps background jobs out of `~/Downloads`, `~/Documents`, and `~/Desktop`
 project lives there, grant uv Full Disk Access (System Settings > Privacy & Security) or
 move the project, then check with `tracker schedule run-now`.
 
+## Site pages
+
+`tracker serve` runs a read-only JSON API (docs at `/api/docs`) and the React app in `web/`.
+The app opens on the site list (`/api/sites`): every site with signals, sortable by status,
+signal kinds, equipment, MW, and latest filing, and filterable by county, status, company
+or ticker, and "2+ kinds of signal". Companies are shown at medium or high confidence only.
+
+A site page (`/api/sites/{id}`) shows:
+
+- **Owner chain:** each legal entity named on a filing at the site, the role it was named in
+  (owner, tenant, operator, permit holder) and the filing, then the company behind it and
+  why, plus sister entities found at the same franchise tax address. Every step shows its
+  confidence and a source link; the chain is as strong as its weaker step.
+- **Timeline:** every signal, newest first, with its source and how it was tied to the site
+  (its own RN or permit number, or a name or owner match with confidence).
+- **Equipment:** the netted unit counts per permit, with make, model, size, and the page.
+- **Open questions:** low-confidence "same site?" links waiting for review.
+
+Entity officers and registered agents are never returned.
+
 ## Ticker pages
 
-`tracker serve` runs a read-only JSON API (`/api/tickers`, `/api/tickers/{symbol}`, docs at
-`/api/docs`) and the React app in `web/`. The index lists every ticker with sites or
-supplied equipment. A ticker page has two sides:
+The ticker index (`/api/tickers`) lists every ticker with sites or supplied equipment. A
+ticker page (`/api/tickers/{symbol}`) has two sides:
 
 - **Sites (demand):** every site where an entity belonging to the company is owner, tenant,
   operator, or permit holder, with confidence. Click a row for the chain of evidence: which
@@ -232,6 +251,7 @@ src/tracker/
   entities.py            entities, entity-to-site and company links, confidence rollup
   owners.py              franchise tax lookups, sister LLCs, hand findings
   views/ticker.py        ticker page data: demand-side sites, supplied equipment
+  views/sites.py         site list and site page: owner chain, timeline, equipment
   jobs.py                collection jobs shared by the CLI and the refresh
   refresh.py             weekly refresh: run collectors, change report, health checks
   schedule.py            launchd LaunchAgent for the weekly refresh

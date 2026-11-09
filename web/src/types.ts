@@ -106,3 +106,82 @@ export interface TickerRow {
   supplied_units: number;
   supplied_mw: number;
 }
+
+// Site list and site page (src/tracker/views/sites.py).
+
+export interface SiteRow {
+  id: number;
+  name: string;
+  county: string | null;
+  status: string;
+  signal_types: string[];
+  sources: number;
+  signal_count: number;
+  latest_date: string | null;
+  generators: number;
+  turbines: number;
+  mw: number;
+  unsized: number;
+  companies: { company: string; ticker: string | null; confidence: Confidence }[];
+}
+
+export interface SignalRow extends DocRef {
+  id: number;
+  source: string;
+  source_label: string;
+  rn: string | null;
+  status: string | null;
+  equipment_rows: number;
+  match: LinkStep | null;
+}
+
+export interface EquipmentRow {
+  category: string;
+  kind: "generators" | "turbines" | null;
+  count: number;
+  manufacturer: string | null;
+  model: string | null;
+  fuel: string | null;
+  units: string | null;
+  unit_size: number | null;
+  unit: string | null;
+  mw: number | null;
+  page: number | null;
+  snippet: string | null;
+}
+
+export interface ChainCompany extends LinkStep {
+  company: string;
+  role: string;
+  ticker: string | null;
+  exchange: string | null;
+}
+
+export interface ChainEntity {
+  entity: string;
+  entity_type: string | null;
+  roles: (LinkStep & { role: string })[];
+  companies: ChainCompany[];
+  affiliates: (LinkStep & { entity: string })[];
+  chain_confidence: Confidence | null;
+}
+
+export interface SiteView {
+  disclaimer: string;
+  id: number;
+  name: string;
+  aliases: string[];
+  county: string | null;
+  city: string | null;
+  status: string;
+  status_history: { from: string | null; to: string; at: string | null; note: string | null }[];
+  tceq_rns: string[];
+  signal_types: string[];
+  sources: string[];
+  signals: SignalRow[];
+  power: Power;
+  equipment: (DocRef & { other_documents: number; rows: EquipmentRow[] })[];
+  owner_chain: ChainEntity[];
+  companies: { company: string; ticker: string | null; confidence: Confidence; roles: string[] }[];
+  review: (LinkStep & { site: { id: number; name: string } | null; signal: DocRef | null })[];
+}

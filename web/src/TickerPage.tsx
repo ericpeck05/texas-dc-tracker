@@ -21,7 +21,7 @@ export function TickerPage({ symbol }: { symbol: string }) {
   if (error)
     return (
       <main>
-        <a href="#/" className="back">
+        <a href="#/tickers" className="back">
           ← tickers
         </a>
         <p className="error">{error}</p>
@@ -36,7 +36,7 @@ export function TickerPage({ symbol }: { symbol: string }) {
 
   return (
     <main>
-      <a href="#/" className="back">
+      <a href="#/tickers" className="back">
         ← tickers
       </a>
       <div className="ticker-head">
@@ -93,7 +93,9 @@ export function TickerPage({ symbol }: { symbol: string }) {
                 <tr key={i} className={isNew(r.date) ? "new" : undefined}>
                   <td className="mono nowrap">{r.date ?? "—"}</td>
                   <td>{signalLabel(r.type)}</td>
-                  <td>{r.site}</td>
+                  <td>
+                    <a href={`#/s/${r.site_id}`}>{r.site}</a>
+                  </td>
                   <td className="mono">{r.permit ?? ""}</td>
                   <td>
                     {r.url && (
@@ -153,7 +155,10 @@ function DemandTable({ sites, bare }: { sites: DemandSite[]; bare?: boolean }) {
                 onClick={() => setOpen(open === site.id ? null : site.id)}
               >
                 <td>
-                  <span className="caret">{open === site.id ? "▾" : "▸"}</span> {site.name}
+                  <span className="caret">{open === site.id ? "▾" : "▸"}</span>{" "}
+                  <a href={`#/s/${site.id}`} onClick={(e) => e.stopPropagation()}>
+                    {site.name}
+                  </a>
                 </td>
                 <td className="dim">{site.county ?? "—"}</td>
                 <td>{roles}</td>
@@ -279,7 +284,7 @@ function SupplyTable({ view }: { view: TickerView }) {
           {view.supply.sites.flatMap((site) =>
             site.units.map((u, i) => (
               <tr key={`${site.id}-${i}`}>
-                <td>{i === 0 ? site.name : ""}</td>
+                <td>{i === 0 ? <a href={`#/s/${site.id}`}>{site.name}</a> : ""}</td>
                 <td>
                   {u.manufacturer} <span className="dim">{u.model ?? ""}</span>
                 </td>

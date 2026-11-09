@@ -50,6 +50,19 @@ a:hover {
   margin-bottom: 16px;
   flex-wrap: wrap;
 }
+.topbar nav {
+  display: flex;
+  gap: 12px;
+  font: 12px var(--mono);
+}
+.topbar nav a {
+  color: var(--dim);
+  text-decoration: none;
+}
+.topbar nav a.here {
+  color: var(--text);
+  border-bottom: 1px solid var(--text);
+}
 .brand {
   font: 600 13px var(--mono);
   letter-spacing: 0.08em;
@@ -230,6 +243,65 @@ h2 .dim {
   margin-left: 16px;
   color: var(--text);
   font-size: 12px;
+}
+
+.small {
+  font-size: 11px;
+}
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.filters input[type="search"],
+.filters select {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 4px 6px;
+  font: 12px var(--mono);
+}
+.filters input[type="search"] {
+  min-width: 240px;
+  flex: 1 1 240px;
+  max-width: 360px;
+}
+.grid th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+.grid th.sorted {
+  color: var(--text);
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+.chip {
+  white-space: nowrap;
+}
+.step,
+.step-inline {
+  font-size: 12px;
+}
+.step {
+  margin: 4px 0;
+}
+button.linkish {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--dim);
+  font: 11px var(--mono);
+  text-decoration: underline dotted;
+  cursor: pointer;
+}
+.chain td > div + div {
+  margin-top: 3px;
 }
 
 .disclaimer {

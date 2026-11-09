@@ -48,3 +48,17 @@ export function Sourced({ children, docs }: { children: React.ReactNode; docs: D
     </a>
   );
 }
+
+export function statusLabel(status: string): string {
+  return status.replace(/_/g, " ");
+}
+
+export function fetchJson<T>(url: string): Promise<T> {
+  return fetch(url).then(async (r) => {
+    if (!r.ok) {
+      const body = await r.json().catch(() => ({}));
+      throw new Error(body.detail ?? `HTTP ${r.status}`);
+    }
+    return r.json();
+  });
+}

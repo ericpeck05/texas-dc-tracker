@@ -14,6 +14,7 @@ from sqlalchemy.engine import Engine
 
 from tracker.config import get_settings
 from tracker.db.session import make_engine, session_scope
+from tracker.views.sites import site_list, site_view
 from tracker.views.ticker import ticker_index, ticker_view
 
 DISCLAIMER = (
@@ -38,6 +39,19 @@ def create_app(engine: Engine | None = None, web_dist: Path | None = WEB_DIST) -
             view = ticker_view(session, symbol)
         if view is None:
             raise HTTPException(404, f"No company or supplier with ticker {symbol.upper()}")
+        return {"disclaimer": DISCLAIMER, **view}
+
+    @app.get("/api/sites")
+    def sites() -> dict:
+        with session_scope(engine) as session:
+            return {"disclaimer": DISCLAIMER, "sites": site_list(session)}
+
+    @app.get("/api/sites/{site_id}")
+    def site(site_id: int) -> dict:
+        with session_scope(engine) as session:
+            view = site_view(session, site_id)
+        if view is None:
+            raise HTTPException(404, f"No site {site_id}")
         return {"disclaimer": DISCLAIMER, **view}
 
     if web_dist is not None and (web_dist / "index.html").exists():
