@@ -415,3 +415,97 @@ kbd {
     padding-top: 0;
   }
 }
+
+/* Map + site list */
+.map-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  align-items: start;
+}
+@media (min-width: 1280px) {
+  .map-layout {
+    grid-template-columns: minmax(420px, 44%) 1fr;
+  }
+  .site-map {
+    position: sticky;
+    top: 8px;
+  }
+}
+.table-side {
+  min-width: 0;
+  overflow-x: auto;
+}
+.site-map {
+  margin: 0;
+  max-width: 760px;
+}
+.site-map > svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.counties path {
+  fill: var(--panel);
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.counties path:hover {
+  fill: #141414;
+}
+.dot {
+  fill: var(--c);
+  fill-opacity: 0.75;
+  stroke: #000;
+  stroke-width: 1;
+  cursor: pointer;
+}
+.dot.approx {
+  fill-opacity: 0.25;
+  stroke: var(--c);
+  stroke-width: 1.5;
+}
+.dot.hot {
+  stroke: var(--accent);
+  stroke-width: 3;
+  fill-opacity: 1;
+}
+.map-tip rect {
+  fill: #000;
+  stroke: var(--dim);
+}
+.map-tip text {
+  fill: var(--text);
+  font: 20px var(--sans);
+}
+.map-tip text.dim {
+  fill: var(--dim);
+  font-size: 17px;
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 12px;
+  margin: 6px 0 4px;
+}
+.grid tr.hot td {
+  background: #141414;
+}
+
+/* Feed */
+.tabs.inline {
+  margin: 0;
+}
+.tag {
+  font: 11px var(--mono);
+  border: 1px solid var(--line);
+  padding: 0 5px;
+  color: var(--dim);
+}
+.grid tr.current td {
+  background: var(--panel);
+}
+.grid tr.current td:first-child {
+  box-shadow: inset 2px 0 0 var(--text);
+}

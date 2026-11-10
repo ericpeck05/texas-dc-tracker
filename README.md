@@ -178,7 +178,21 @@ move the project, then check with `tracker schedule run-now`.
 
 `tracker serve` runs a JSON API (docs at `/api/docs`) and the React app in `web/`. It is
 read-only except for review decisions (below); keep it on 127.0.0.1.
-The app opens on the site list (`/api/sites`): every site with signals, sortable by status,
+The app opens on the **feed** (`/api/feed`): filings newest first by the date on the
+document, each tagged by signal type and linked to its site, with the companies behind the
+site and the generators and turbines that filing lists. Windows of 7, 30, 90, 365 days or
+all (keys `1`-`5`), a signal type filter, and `j`/`k`, `enter` (open site), `d` (open
+document).
+
+**Map + sites** (`#/sites`) puts every located site on a Texas county map, sized by permitted
+MW and colored by status, beside the site table; filters apply to both. Filings rarely give
+coordinates, so positions are approximate: a site sits at the city its TCEQ records name
+(Census Gazetteer place point) or, failing that, at its county's center (drawn as a ring).
+Sites named only in the Comptroller registry give no place and appear in the table only.
+`scripts/build_texas_reference.py` builds the county shapes and place points from official
+Census data (run once; its outputs are committed).
+
+The site list (`/api/sites`) has every site with signals, sortable by status,
 signal kinds, equipment, MW, and latest filing, and filterable by county, status, company
 or ticker, and "2+ kinds of signal". Companies are shown at medium or high confidence only.
 
@@ -273,6 +287,8 @@ src/tracker/
   owners.py              franchise tax lookups, sister LLCs, hand findings
   views/ticker.py        ticker page data: demand-side sites, supplied equipment
   views/sites.py         site list and site page: owner chain, timeline, equipment
+  views/feed.py          feed: filings newest first with site, companies, equipment
+  locate.py              approximate site positions (city point or county center)
   review.py              review queue: confirm/reject low links, merges, decision replay
   jobs.py                collection jobs shared by the CLI and the refresh
   refresh.py             weekly refresh: run collectors, change report, health checks
@@ -284,6 +300,8 @@ web/                     React + Vite frontend
   parsers/pdf.py         pdfplumber with PyMuPDF fallback
   extract/tceq_air.py    rule-based equipment extraction
   reference/suppliers.py manufacturers and tickers
+  reference/tx_*.csv     Texas county centers and Census place points
+scripts/build_texas_reference.py  builds those and web/src/texas-map.json
 ```
 
 ## License

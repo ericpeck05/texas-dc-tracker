@@ -11,7 +11,8 @@ export function TickerPage({ symbol }: { symbol: string }) {
     setError(null);
     fetch(`/api/tickers/${encodeURIComponent(symbol)}`)
       .then(async (r) => {
-        if (!r.ok) throw new Error((await r.json()).detail ?? `HTTP ${r.status}`);
+        if (!r.ok)
+          throw new Error((await r.json()).detail ?? `HTTP ${r.status}`);
         return r.json();
       })
       .then(setView)
@@ -46,15 +47,26 @@ export function TickerPage({ symbol }: { symbol: string }) {
         </h1>
         <div className="names">
           {view.names.join(", ")}
-          {view.roles.length > 0 && <span className="dim"> · {view.roles.join(", ")}</span>}
-          {hasSupply && <span className="dim"> · makes {view.supply.makers.join(", ")}</span>}
+          {view.roles.length > 0 && (
+            <span className="dim"> · {view.roles.join(", ")}</span>
+          )}
+          {hasSupply && (
+            <span className="dim">
+              {" "}
+              · makes {view.supply.makers.join(", ")}
+            </span>
+          )}
         </div>
       </div>
 
       <section className="stats">
         {hasDemand && (
           <>
-            <Stat label="Sites" value={num(d.sites)} sub={`${d.high_confidence_sites} high conf.`} />
+            <Stat
+              label="Sites"
+              value={num(d.sites)}
+              sub={`${d.high_confidence_sites} high conf.`}
+            />
             <Stat label="Generators at sites" value={num(d.generators)} />
             <Stat label="Turbines at sites" value={num(d.turbines)} />
             <Stat
@@ -66,19 +78,26 @@ export function TickerPage({ symbol }: { symbol: string }) {
         )}
         {hasSupply && (
           <>
-            <Stat label="Units supplied" value={num(s.generators + s.turbines)} accent />
+            <Stat
+              label="Units supplied"
+              value={num(s.generators + s.turbines)}
+              accent
+            />
             <Stat label="Supplied MW" value={mw(s.mw, s.unsized)} accent />
           </>
         )}
       </section>
 
-      {view.demand.sites.length > 0 && <DemandTable sites={view.demand.sites} />}
+      {view.demand.sites.length > 0 && (
+        <DemandTable sites={view.demand.sites} />
+      )}
       {hasSupply && <SupplyTable view={view} />}
 
       {view.demand.leads.length > 0 && (
         <section>
           <h2>
-            Leads <span className="dim">· low confidence, not counted above</span>
+            Leads{" "}
+            <span className="dim">· low confidence, not counted above</span>
           </h2>
           <DemandTable sites={view.demand.leads} bare />
         </section>
@@ -116,11 +135,18 @@ export function TickerPage({ symbol }: { symbol: string }) {
   );
 }
 
-function Stat(props: { label: string; value: string; sub?: string; accent?: boolean }) {
+function Stat(props: {
+  label: string;
+  value: string;
+  sub?: string;
+  accent?: boolean;
+}) {
   return (
     <div className="stat">
       <div className="stat-label">{props.label}</div>
-      <div className={`stat-value mono${props.accent ? " supply" : ""}`}>{props.value}</div>
+      <div className={`stat-value mono${props.accent ? " supply" : ""}`}>
+        {props.value}
+      </div>
       {props.sub && <div className="stat-sub dim">{props.sub}</div>}
     </div>
   );
@@ -156,7 +182,10 @@ function DemandTable({ sites, bare }: { sites: DemandSite[]; bare?: boolean }) {
               >
                 <td>
                   <span className="caret">{open === site.id ? "▾" : "▸"}</span>{" "}
-                  <a href={`#/s/${site.id}`} onClick={(e) => e.stopPropagation()}>
+                  <a
+                    href={`#/s/${site.id}`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     {site.name}
                   </a>
                 </td>
@@ -166,10 +195,18 @@ function DemandTable({ sites, bare }: { sites: DemandSite[]; bare?: boolean }) {
                   <Conf level={site.confidence} />
                 </td>
                 <td className="r mono">
-                  {p.generators ? <Sourced docs={p.sources}>{num(p.generators)}</Sourced> : "–"}
+                  {p.generators ? (
+                    <Sourced docs={p.sources}>{num(p.generators)}</Sourced>
+                  ) : (
+                    "–"
+                  )}
                 </td>
                 <td className="r mono">
-                  {p.turbines ? <Sourced docs={p.sources}>{num(p.turbines)}</Sourced> : "–"}
+                  {p.turbines ? (
+                    <Sourced docs={p.sources}>{num(p.turbines)}</Sourced>
+                  ) : (
+                    "–"
+                  )}
                 </td>
                 <td className="r mono nowrap">
                   {p.mw || p.unsized ? (
@@ -178,8 +215,12 @@ function DemandTable({ sites, bare }: { sites: DemandSite[]; bare?: boolean }) {
                     "–"
                   )}
                 </td>
-                <td className="dim">{site.signal_types.map(signalLabel).join(", ")}</td>
-                <td className={`mono nowrap${isNew(latest?.date) ? " accent" : ""}`}>
+                <td className="dim">
+                  {site.signal_types.map(signalLabel).join(", ")}
+                </td>
+                <td
+                  className={`mono nowrap${isNew(latest?.date) ? " accent" : ""}`}
+                >
                   {latest?.url ? (
                     <a href={latest.url} target="_blank" rel="noreferrer">
                       {latest.date ?? "undated"}
@@ -206,7 +247,11 @@ function DemandTable({ sites, bare }: { sites: DemandSite[]; bare?: boolean }) {
   return (
     <section>
       <h2>
-        Sites <span className="dim">· owner, tenant, operator, or permit holder · click a row for the evidence</span>
+        Sites{" "}
+        <span className="dim">
+          · owner, tenant, operator, or permit holder · click a row for the
+          evidence
+        </span>
       </h2>
       {table}
     </section>
@@ -233,8 +278,10 @@ function Evidence({ site }: { site: DemandSite }) {
       {site.ties.map((t, i) => (
         <div key={i} className="tie">
           <div>
-            <span className="strong">{t.entity}</span> <span className="dim">is</span> {t.role}{" "}
-            <span className="dim">→ belongs to</span> <span className="strong">{t.company}</span>{" "}
+            <span className="strong">{t.entity}</span>{" "}
+            <span className="dim">is</span> {t.role}{" "}
+            <span className="dim">→ belongs to</span>{" "}
+            <span className="strong">{t.company}</span>{" "}
             <Conf level={t.confidence} />
           </div>
           <Step label="entity → site:" step={t.entity_to_site} />
@@ -266,7 +313,11 @@ function SupplyTable({ view }: { view: TickerView }) {
   return (
     <section>
       <h2>
-        Equipment supplied <span className="dim">· {view.supply.makers.join(", ")} units named in air permits, each counted once</span>
+        Equipment supplied{" "}
+        <span className="dim">
+          · {view.supply.makers.join(", ")} units named in air permits, each
+          counted once
+        </span>
       </h2>
       <table className="grid">
         <thead>
@@ -284,15 +335,21 @@ function SupplyTable({ view }: { view: TickerView }) {
           {view.supply.sites.flatMap((site) =>
             site.units.map((u, i) => (
               <tr key={`${site.id}-${i}`}>
-                <td>{i === 0 ? <a href={`#/s/${site.id}`}>{site.name}</a> : ""}</td>
+                <td>
+                  {i === 0 ? <a href={`#/s/${site.id}`}>{site.name}</a> : ""}
+                </td>
                 <td>
                   {u.manufacturer} <span className="dim">{u.model ?? ""}</span>
                 </td>
-                <td className="dim">{u.kind === "turbines" ? "turbine" : "generator"}</td>
+                <td className="dim">
+                  {u.kind === "turbines" ? "turbine" : "generator"}
+                </td>
                 <td className="r mono">
                   <Sourced docs={[u.source]}>{num(u.count)}</Sourced>
                 </td>
-                <td className="r mono">{u.unit_size ? `${num(u.unit_size)} ${u.unit}` : "—"}</td>
+                <td className="r mono">
+                  {u.unit_size ? `${num(u.unit_size)} ${u.unit}` : "—"}
+                </td>
                 <td className="r mono">{u.mw ? mw(u.mw) : "—"}</td>
                 <td className="dim" title={u.source.snippet ?? ""}>
                   {u.source.url ? (

@@ -18,6 +18,7 @@ from sqlalchemy.engine import Engine
 from tracker.config import get_settings
 from tracker.db.session import init_db, make_engine, session_scope
 from tracker.review import DECISIONS_PATH, KINDS, ReviewError, review_and_save, review_queue
+from tracker.views.feed import feed
 from tracker.views.sites import site_list, site_view
 from tracker.views.ticker import ticker_index, ticker_view
 
@@ -67,6 +68,11 @@ def create_app(
         if view is None:
             raise HTTPException(404, f"No site {site_id}")
         return {"disclaimer": DISCLAIMER, **view}
+
+    @app.get("/api/feed")
+    def filings(days: int = 30, type: str | None = None) -> dict:
+        with session_scope(engine) as session:
+            return {"disclaimer": DISCLAIMER, **feed(session, days=days or None, signal_type=type)}
 
     @app.get("/api/review")
     def review(kind: str | None = None, limit: int = 200) -> dict:

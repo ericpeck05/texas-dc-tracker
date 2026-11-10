@@ -9,7 +9,9 @@ export function TickerIndex() {
 
   useEffect(() => {
     fetch("/api/tickers")
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((r) =>
+        r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)),
+      )
       .then((d) => {
         setRows(d.tickers);
         setDisclaimer(d.disclaimer);
@@ -24,9 +26,10 @@ export function TickerIndex() {
     <main>
       <h1 className="page-title">Tickers</h1>
       <p className="dim lede">
-        Public companies tied to Texas data center sites (owner, tenant, operator, permit holder)
-        or supplying their generators and turbines. Medium and high confidence only; low
-        confidence ties are counted as leads.
+        Public companies tied to Texas data center sites (owner, tenant,
+        operator, permit holder) or supplying their generators and turbines.
+        Medium and high confidence only; low confidence ties are counted as
+        leads.
       </p>
       <table className="grid">
         <thead>
@@ -43,7 +46,10 @@ export function TickerIndex() {
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.symbol} onClick={() => (window.location.hash = `#/t/${r.symbol}`)}>
+            <tr
+              key={r.symbol}
+              onClick={() => (window.location.hash = `#/t/${r.symbol}`)}
+            >
               <td>
                 <a href={`#/t/${r.symbol}`} className="sym">
                   {r.symbol}
@@ -52,11 +58,17 @@ export function TickerIndex() {
               </td>
               <td>{r.names.join(", ")}</td>
               <td className="r mono">{r.sites ? num(r.sites) : "–"}</td>
-              <td className="r mono">{r.high_confidence_sites ? num(r.high_confidence_sites) : "–"}</td>
+              <td className="r mono">
+                {r.high_confidence_sites ? num(r.high_confidence_sites) : "–"}
+              </td>
               <td className="r mono dim">{r.leads ? num(r.leads) : "–"}</td>
               <td className="r mono">{r.site_mw ? mw(r.site_mw) : "–"}</td>
-              <td className="r mono">{r.supplied_units ? num(r.supplied_units) : "–"}</td>
-              <td className="r mono">{r.supplied_mw ? mw(r.supplied_mw) : "–"}</td>
+              <td className="r mono">
+                {r.supplied_units ? num(r.supplied_units) : "–"}
+              </td>
+              <td className="r mono">
+                {r.supplied_mw ? mw(r.supplied_mw) : "–"}
+              </td>
             </tr>
           ))}
         </tbody>

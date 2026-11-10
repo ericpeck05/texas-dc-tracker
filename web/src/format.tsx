@@ -4,7 +4,8 @@ export const NEW_DAYS = 30;
 
 export function isNew(date: string | null | undefined): boolean {
   if (!date) return false;
-  const age = (Date.now() - new Date(date + "T00:00:00").getTime()) / 86_400_000;
+  const age =
+    (Date.now() - new Date(date + "T00:00:00").getTime()) / 86_400_000;
   return age >= 0 && age <= NEW_DAYS;
 }
 
@@ -36,14 +37,29 @@ export function signalLabel(type: string): string {
 }
 
 // A number that links to the document it came from, as the design rules ask.
-export function Sourced({ children, docs }: { children: React.ReactNode; docs: DocRef[] }) {
+export function Sourced({
+  children,
+  docs,
+}: {
+  children: React.ReactNode;
+  docs: DocRef[];
+}) {
   const linked = docs.filter((d) => d.url);
   if (!linked.length) return <>{children}</>;
   const title = linked
-    .map((d) => `${d.permit ? "Permit " + d.permit : signalLabel(d.type)} ${d.date ?? ""}`)
+    .map(
+      (d) =>
+        `${d.permit ? "Permit " + d.permit : signalLabel(d.type)} ${d.date ?? ""}`,
+    )
     .join("\n");
   return (
-    <a className="num-link" href={linked[0].url!} target="_blank" rel="noreferrer" title={title}>
+    <a
+      className="num-link"
+      href={linked[0].url!}
+      target="_blank"
+      rel="noreferrer"
+      title={title}
+    >
       {children}
     </a>
   );

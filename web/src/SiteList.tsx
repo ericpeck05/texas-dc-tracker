@@ -1,10 +1,27 @@
 import { useEffect, useMemo, useState } from "react";
-import { Conf, fetchJson, isNew, mw, num, signalLabel, statusLabel } from "./format";
+import {
+  Conf,
+  fetchJson,
+  isNew,
+  mw,
+  num,
+  signalLabel,
+  statusLabel,
+} from "./format";
+import { SiteMap } from "./SiteMap";
 import type { SiteRow } from "./types";
 
-type SortKey = "name" | "county" | "status" | "kinds" | "latest_date" | "generators" | "mw";
+type SortKey =
+  "name" | "county" | "status" | "kinds" | "latest_date" | "generators" | "mw";
 
-const STATUS_ORDER = ["operating", "under_construction", "approved", "filed", "rumored", "cancelled"];
+const STATUS_ORDER = [
+  "operating",
+  "under_construction",
+  "approved",
+  "filed",
+  "rumored",
+  "cancelled",
+];
 
 function sortValue(r: SiteRow, key: SortKey): string | number {
   switch (key) {
@@ -29,6 +46,7 @@ export function SiteList() {
   const [county, setCounty] = useState("");
   const [status, setStatus] = useState("");
   const [multi, setMulti] = useState(false);
+  const [hovered, setHovered] = useState<number | null>(null);
   const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({
     key: "latest_date",
     desc: true,
@@ -44,7 +62,12 @@ export function SiteList() {
   }, []);
 
   const counties = useMemo(
-    () => [...new Set((rows ?? []).map((r) => r.county).filter(Boolean) as string[])].sort(),
+    () =>
+      [
+        ...new Set(
+          (rows ?? []).map((r) => r.county).filter(Boolean) as string[],
+        ),
+      ].sort(),
     [rows],
   );
 
@@ -56,7 +79,9 @@ export function SiteList() {
         (!q ||
           r.name.toLowerCase().includes(q) ||
           r.companies.some(
-            (c) => c.company.toLowerCase().includes(q) || c.ticker?.toLowerCase() === q,
+            (c) =>
+              c.company.toLowerCase().includes(q) ||
+              c.ticker?.toLowerCase() === q,
           )) &&
         (!county || r.county === county) &&
         (!status || r.status === status) &&
@@ -79,7 +104,10 @@ export function SiteList() {
     <th
       className={`sortable${right ? " r" : ""}${sort.key === key ? " sorted" : ""}`}
       onClick={() =>
-        setSort((s) => ({ key, desc: s.key === key ? !s.desc : key !== "name" && key !== "county" }))
+        setSort((s) => ({
+          key,
+          desc: s.key === key ? !s.desc : key !== "name" && key !== "county",
+        }))
       }
     >
       {label}
@@ -89,11 +117,12 @@ export function SiteList() {
 
   return (
     <main>
-      <h1 className="page-title">Sites</h1>
+      <h1 className="page-title">Map and sites</h1>
       <p className="dim lede">
-        {num(rows.length)} Texas data center sites from TCEQ permits and registry records,
-        Comptroller tax filings, and local abatements. {num(multiCount)} have two or more kinds
-        of signal. Companies shown at medium or high confidence.
+        {num(rows.length)} Texas data center sites from TCEQ permits and
+        registry records, Comptroller tax filings, and local abatements.{" "}
+        {num(multiCount)} have two or more kinds of signal. Companies shown at
+        medium or high confidence.
       </p>
       <div className="filters">
         <input
@@ -117,71 +146,92 @@ export function SiteList() {
           ))}
         </select>
         <label className="dim">
-          <input type="checkbox" checked={multi} onChange={(e) => setMulti(e.target.checked)} /> 2+
-          kinds of signal
+          <input
+            type="checkbox"
+            checked={multi}
+            onChange={(e) => setMulti(e.target.checked)}
+          />{" "}
+          2+ kinds of signal
         </label>
         <span className="dim mono">{num(shown.length)} shown</span>
       </div>
-      <table className="grid">
-        <thead>
-          <tr>
-            {th("name", "Site")}
-            {th("county", "County")}
-            {th("status", "Status")}
-            <th>Companies</th>
-            {th("kinds", "Signals")}
-            {th("generators", "Gen. / turb.", true)}
-            {th("mw", "MW", true)}
-            {th("latest_date", "Latest", true)}
-          </tr>
-        </thead>
-        <tbody>
-          {shown.map((r) => (
-            <tr
-              key={r.id}
-              className={`clickable${isNew(r.latest_date) ? " new" : ""}`}
-              onClick={() => (window.location.hash = `#/s/${r.id}`)}
-            >
-              <td>
-                <a href={`#/s/${r.id}`}>{r.name}</a>
-              </td>
-              <td className="dim">{r.county ?? "—"}</td>
-              <td className="dim nowrap">{statusLabel(r.status)}</td>
-              <td>
-                {r.companies.map((c, i) => (
-                  <span key={c.company} className="nowrap">
-                    {i > 0 && ", "}
-                    {c.ticker ? (
-                      <a
-                        href={`#/t/${c.ticker}`}
-                        className="sym"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {c.ticker}
-                      </a>
-                    ) : (
-                      c.company
-                    )}
-                    {c.confidence === "medium" && <span className="dim">?</span>}
-                  </span>
-                ))}
-              </td>
-              <td className="dim">{r.signal_types.map(signalLabel).join(", ")}</td>
-              <td className="r mono">
-                {r.generators || r.turbines ? `${num(r.generators)} / ${num(r.turbines)}` : "–"}
-              </td>
-              <td className="r mono">{r.mw || r.unsized ? mw(r.mw, r.unsized) : "–"}</td>
-              <td className={`r mono nowrap${isNew(r.latest_date) ? " accent" : ""}`}>
-                {r.latest_date ?? "—"}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="map-layout">
+        <SiteMap rows={shown} hovered={hovered} onHover={setHovered} />
+        <div className="table-side">
+          <table className="grid">
+            <thead>
+              <tr>
+                {th("name", "Site")}
+                {th("county", "County")}
+                {th("status", "Status")}
+                <th>Companies</th>
+                {th("kinds", "Signals")}
+                {th("generators", "Gen. / turb.", true)}
+                {th("mw", "MW", true)}
+                {th("latest_date", "Latest", true)}
+              </tr>
+            </thead>
+            <tbody>
+              {shown.map((r) => (
+                <tr
+                  key={r.id}
+                  className={`clickable${isNew(r.latest_date) ? " new" : ""}${hovered === r.id ? " hot" : ""}`}
+                  onClick={() => (window.location.hash = `#/s/${r.id}`)}
+                  onMouseEnter={() => setHovered(r.id)}
+                  onMouseLeave={() => setHovered(null)}
+                >
+                  <td>
+                    <a href={`#/s/${r.id}`}>{r.name}</a>
+                  </td>
+                  <td className="dim">{r.county ?? "—"}</td>
+                  <td className="dim nowrap">{statusLabel(r.status)}</td>
+                  <td>
+                    {r.companies.map((c, i) => (
+                      <span key={c.company} className="nowrap">
+                        {i > 0 && ", "}
+                        {c.ticker ? (
+                          <a
+                            href={`#/t/${c.ticker}`}
+                            className="sym"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {c.ticker}
+                          </a>
+                        ) : (
+                          c.company
+                        )}
+                        {c.confidence === "medium" && (
+                          <span className="dim">?</span>
+                        )}
+                      </span>
+                    ))}
+                  </td>
+                  <td className="dim">
+                    {r.signal_types.map(signalLabel).join(", ")}
+                  </td>
+                  <td className="r mono">
+                    {r.generators || r.turbines
+                      ? `${num(r.generators)} / ${num(r.turbines)}`
+                      : "–"}
+                  </td>
+                  <td className="r mono">
+                    {r.mw || r.unsized ? mw(r.mw, r.unsized) : "–"}
+                  </td>
+                  <td
+                    className={`r mono nowrap${isNew(r.latest_date) ? " accent" : ""}`}
+                  >
+                    {r.latest_date ?? "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
       <p className="dim small">
-        A ? after a company means medium confidence: the tie rests on a name match or a match
-        between sources, not a filing that names the company. <Conf level="high" /> ties appear
-        on the site page.
+        A ? after a company means medium confidence: the tie rests on a name
+        match or a match between sources, not a filing that names the company.{" "}
+        <Conf level="high" /> ties appear on the site page.
       </p>
       <footer className="disclaimer">{disclaimer}</footer>
     </main>

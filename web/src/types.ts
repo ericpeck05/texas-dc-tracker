@@ -123,6 +123,10 @@ export interface SiteRow {
   mw: number;
   unsized: number;
   companies: { company: string; ticker: string | null; confidence: Confidence }[];
+  lat: number | null;
+  lon: number | null;
+  located: "exact" | "city" | "county" | null;
+  place: string | null;
 }
 
 export interface SignalRow extends DocRef {
@@ -225,4 +229,27 @@ export interface ReviewQueue {
   counts: Record<ReviewKind, number>;
   items: ReviewItem[];
   decided: { confirm: number; reject: number };
+}
+
+export interface FeedItem {
+  id: number;
+  date: string;
+  type: string;
+  title: string | null;
+  url: string | null;
+  permit: string | null;
+  status: string | null;
+  source_label: string;
+  site: { id: number; name: string; county: string | null; status: string } | null;
+  companies: { company: string; ticker: string | null; confidence: Confidence }[];
+  equipment: { generators: number; turbines: number; mw: number };
+  revised: boolean;
+}
+
+export interface FeedResponse {
+  disclaimer: string;
+  days: number | null;
+  today: string;
+  latest_filing: string | null;
+  items: FeedItem[];
 }

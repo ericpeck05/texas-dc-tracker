@@ -28,6 +28,7 @@ from tracker.db.models import (
     Site,
 )
 from tracker.entities import RANK, not_rejected
+from tracker.locate import site_location
 from tracker.rollup import site_inventory
 from tracker.views.ticker import ROLE_LABEL, _doc_ref, _kind, _power, site_power
 
@@ -344,6 +345,7 @@ def site_row(session: Session, site: Site, signals: list[Signal] | None = None) 
             {"company": c["company"], "ticker": c["ticker"], "confidence": c["confidence"]}
             for c in shown
         ],
+        **site_location(site, signals),
     }
 
 
