@@ -222,8 +222,10 @@ Makes come from, in order: the sentence or table row that counts the units; a mo
 only one maker sells (TM2500 and LM2500 are GE, QSK and HSK are Cummins, G3520 is
 Caterpillar, 20V4000 is mtu); the only generator or turbine maker the document names
 anywhere; or the only one another document for the same permit names. The last two are
-marked "inferred" on the scoreboard and site pages. A document naming two makers for the
-same kind of equipment leaves its units unnamed rather than guess. Click a manufacturer for its
+marked "inferred" on the scoreboard and site pages. When a document names two makers for the
+same kind of equipment, a group of 5 or more units goes to one of them only if that maker
+is named exactly once per unit (an emission table row per unit, "EGEN08 / Caterpillar")
+and the other is not; otherwise the units stay unnamed rather than guess. Click a manufacturer for its
 models, sites, and the permit page behind every count.
 
 ## Review queue

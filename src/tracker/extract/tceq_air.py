@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter
+from collections.abc import Iterator
 from dataclasses import asdict, dataclass, field, replace
 from datetime import date
 from typing import Any
@@ -23,7 +24,7 @@ from tracker.db.models import EquipmentCategory
 from tracker.reference.suppliers import SUPPLIERS, find_supplier
 
 EXTRACTOR_NAME = "tceq_air_rules"
-EXTRACTOR_VERSION = "0.5.0"
+EXTRACTOR_VERSION = "0.5.1"
 
 LOOKBACK_CHARS = 160
 LOOKAHEAD_CHARS = 110
@@ -929,6 +930,7 @@ _ENGINE_WORD_RE = re.compile(
 )
 _FIRE_PUMP_NEAR_RE = re.compile(r"\bfire[\s-]+(?:water\s+)?pump", re.IGNORECASE)
 _MAKE_WINDOW = 120
+MIN_COUNT_MATCH = 5  # smaller groups match a mention count too easily by chance
 # Models that only exist as turbines, whatever word the table puts next to them.
 _TURBINE_MODEL_RE = re.compile(r"^(?:LMS?\d|TM\d|Titan|Taurus|Mars|Centaur|Mercury|SGT)", re.I)
 
@@ -941,13 +943,12 @@ def _family(category: EquipmentCategory) -> str | None:
     return None
 
 
-def document_makes(text: str) -> dict[str, dict[str, set[str | None]]]:
-    """Every generator or turbine maker a document names: family -> maker -> models.
+def _make_mentions(text: str) -> Iterator[tuple[str, str, str | None]]:
+    """(family, maker, model) for each generator or turbine maker mention in a document.
 
     A mention counts when an equipment word sits within a short window of it; fire pump
     engines are left out (they are not counted as generators)."""
     flat = " ".join(text.split())
-    out: dict[str, dict[str, set[str | None]]] = {"engine": {}, "turbine": {}}
     pos = 0
     while (found := find_supplier(flat[pos:])) is not None:
         supplier, m = found
@@ -971,7 +972,23 @@ def document_makes(text: str) -> dict[str, dict[str, set[str | None]]]:
             family = "turbine" if t <= e else "engine"
         else:
             family = "turbine" if near_turbine else "engine"
-        out[family].setdefault(supplier.name, set()).add(model)
+        yield family, supplier.name, model
+
+
+def document_makes(text: str) -> dict[str, dict[str, set[str | None]]]:
+    """Every generator or turbine maker a document names: family -> maker -> models."""
+    out: dict[str, dict[str, set[str | None]]] = {"engine": {}, "turbine": {}}
+    for family, maker, model in _make_mentions(text):
+        out[family].setdefault(maker, set()).add(model)
+    return out
+
+
+def document_make_counts(text: str) -> dict[str, Counter[str]]:
+    """How many times each maker is named, per family. In an emission table that is one
+    mention per unit ("EGEN08 / Caterpillar", "GEN-1-1 / 3.3 MW ... Baudouin Generator")."""
+    out: dict[str, Counter[str]] = {"engine": Counter(), "turbine": Counter()}
+    for family, maker, _model in _make_mentions(text):
+        out[family][maker] += 1
     return out
 
 
@@ -979,6 +996,7 @@ def _fill_makes(text: str, mentions: list[EquipmentMention]) -> list[EquipmentMe
     """Units whose own sentence names no maker get the document's maker, but only when the
     document names exactly one maker for that kind of equipment."""
     makes: dict[str, dict[str, set[str | None]]] | None = None
+    counts: dict[str, Counter[str]] | None = None
     tickers = {s.name: s.ticker for s in SUPPLIERS}
     out = []
     for m in mentions:
@@ -992,6 +1010,14 @@ def _fill_makes(text: str, mentions: list[EquipmentMention]) -> list[EquipmentMe
         if makes is None:
             makes = document_makes(text)
         found = makes[family]
+        if len(found) > 1:
+            # Two makers: the units go to one only if it is named once per unit, exactly
+            # as many times as this group has units, and no other maker is.
+            if counts is None:
+                counts = document_make_counts(text)
+            fits = [k for k, n in counts[family].items() if n == m.count]
+            if m.count >= MIN_COUNT_MATCH and len(fits) == 1:
+                found = {fits[0]: found[fits[0]]}
         if len(found) != 1:
             out.append(m)
             continue

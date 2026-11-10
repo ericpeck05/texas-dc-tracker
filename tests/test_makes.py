@@ -117,3 +117,24 @@ def test_turbine_model_beside_the_word_engine_is_still_a_turbine():
     assert makes["turbine"] == {"GE Vernova": {"TM2500"}} and makes["engine"] == {}
     (eq,) = extract_air_permit(text).equipment
     assert (eq.manufacturer, eq.model, eq.make_source) == ("GE Vernova", "TM2500", "document")
+
+
+def test_two_makers_split_by_one_mention_per_unit():
+    rows = " ".join(f"EGEN{n:02d} / Caterpillar 0.56 0.01 Generator" for n in range(8, 21))
+    text = (
+        "The Facility has seven existing 2.0-MW Cummins standby generators. This application "
+        "makes the following changes: Addition of 13 diesel-fired emergency generators.\f"
+        f"New Emissions {rows}"
+    )
+    eq = {e.count: e for e in extract_air_permit(text).equipment}
+    assert (eq[7].manufacturer, eq[7].make_source) == ("Cummins", "sentence")
+    assert (eq[13].manufacturer, eq[13].make_source) == ("Caterpillar", "document")
+
+
+def test_small_groups_are_not_matched_by_mention_count():
+    text = (
+        "Addition of 2 diesel-fired emergency generators.\f"
+        "Cummins generator and Caterpillar generator. Caterpillar generator again."
+    )
+    (eq,) = extract_air_permit(text).equipment
+    assert eq.manufacturer is None
