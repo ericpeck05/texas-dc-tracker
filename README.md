@@ -176,7 +176,8 @@ move the project, then check with `tracker schedule run-now`.
 
 ## Site pages
 
-`tracker serve` runs a read-only JSON API (docs at `/api/docs`) and the React app in `web/`.
+`tracker serve` runs a JSON API (docs at `/api/docs`) and the React app in `web/`. It is
+read-only except for review decisions (below); keep it on 127.0.0.1.
 The app opens on the site list (`/api/sites`): every site with signals, sortable by status,
 signal kinds, equipment, MW, and latest filing, and filterable by county, status, company
 or ticker, and "2+ kinds of signal". Companies are shown at medium or high confidence only.
@@ -193,6 +194,26 @@ A site page (`/api/sites/{id}`) shows:
 - **Open questions:** low-confidence "same site?" links waiting for review.
 
 Entity officers and registered agents are never returned.
+
+## Review queue
+
+The importers leave a low-confidence link wherever a match is plausible but not settled.
+`#/review` (`GET /api/review`) lists them in four tabs:
+
+- **Same site?** Two sites that may be one project. Confirm merges them: the site with
+  fewer signals moves into the other (signals, equipment, links, RNs, its name as an alias,
+  the further-along status), and its old page points to the merged one.
+- **Filing → site.** A filing whose owner has several sites (the Riot abatement in Navarro
+  County, the Galaxy one in Dickens). Confirm moves the filing to that site, adds its owners,
+  and rejects the other candidates.
+- **Parent company.** A company that may be behind an entity, from a shared mailing address.
+- **Sister LLCs.** Entities at the same franchise tax address.
+
+Keys: `j`/`k` move, `y` confirm, `n` reject, with an optional note. A confirm adds a Link with
+method `manual` and high confidence; a reject hides the guess from every view (links are
+never deleted). Each decision also goes to `seeds/review_decisions.csv`, keyed by RN, site
+name, filing number, or legal name rather than database ids, and `tracker db rebuild`
+replays it. That file is committed: notes should name companies and sources, never people.
 
 ## Ticker pages
 
@@ -252,6 +273,7 @@ src/tracker/
   owners.py              franchise tax lookups, sister LLCs, hand findings
   views/ticker.py        ticker page data: demand-side sites, supplied equipment
   views/sites.py         site list and site page: owner chain, timeline, equipment
+  review.py              review queue: confirm/reject low links, merges, decision replay
   jobs.py                collection jobs shared by the CLI and the refresh
   refresh.py             weekly refresh: run collectors, change report, health checks
   schedule.py            launchd LaunchAgent for the weekly refresh

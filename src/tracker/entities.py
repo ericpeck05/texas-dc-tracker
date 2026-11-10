@@ -23,6 +23,7 @@ from tracker.db.models import (
     LinkMethod,
     LinkType,
     RecordType,
+    ReviewDecision,
     Site,
     Ticker,
 )
@@ -121,6 +122,11 @@ def get_company(session: Session, name: str, role, ticker, exchange) -> Company:
 _LINK_KEY_FIELDS = ("from_type", "from_id", "to_type", "to_id", "link_type", "method", "confidence")
 
 
+def not_rejected():
+    """SQL condition: the link was not rejected in the review queue."""
+    return Link.id.not_in(select(ReviewDecision.link_id).where(ReviewDecision.decision == "reject"))
+
+
 def add_link(session: Session, **kw) -> bool:
     """Append a link unless the same one exists (links are append-only, not duplicated)."""
     exists = session.scalar(
@@ -199,6 +205,7 @@ def site_companies(session: Session, site: Site) -> list[tuple[str, str, str | N
             Link.to_type == RecordType.SITE,
             Link.to_id == site.id,
             Link.from_type == RecordType.ENTITY,
+            not_rejected(),
         )
     ).all()
     for el in entity_links:
@@ -207,6 +214,7 @@ def site_companies(session: Session, site: Site) -> list[tuple[str, str, str | N
                 Link.to_type == RecordType.ENTITY,
                 Link.to_id == el.from_id,
                 Link.from_type == RecordType.COMPANY,
+                not_rejected(),
             )
         ):
             company = session.get(Company, cl.from_id)

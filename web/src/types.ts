@@ -184,4 +184,45 @@ export interface SiteView {
   owner_chain: ChainEntity[];
   companies: { company: string; ticker: string | null; confidence: Confidence; roles: string[] }[];
   review: (LinkStep & { site: { id: number; name: string } | null; signal: DocRef | null })[];
+  merged_into: { id: number; name: string } | null;
+}
+
+export type ReviewKind = "same_site" | "filing" | "parent" | "affiliate";
+
+export type ReviewRecord =
+  | (SiteRow & { kind: "site"; city: string | null; tceq_rns: string[]; aliases: string[] })
+  | {
+      kind: "signal";
+      id: number;
+      title: string | null;
+      url: string | null;
+      date: string | null;
+      type: string;
+      source_label: string;
+      site: { id: number; name: string } | null;
+    }
+  | {
+      kind: "entity";
+      id: number;
+      name: string;
+      sites: { id: number; name: string; role: string }[];
+      companies: { company: string; confidence: Confidence }[];
+    }
+  | { kind: "company"; id: number; name: string; ticker: string | null; role: string };
+
+export interface ReviewItem {
+  link_id: number;
+  kind: ReviewKind;
+  method: string;
+  note: string | null;
+  evidence_url: string | null;
+  created_at: string | null;
+  left: ReviewRecord;
+  right: ReviewRecord;
+}
+
+export interface ReviewQueue {
+  counts: Record<ReviewKind, number>;
+  items: ReviewItem[];
+  decided: { confirm: number; reject: number };
 }

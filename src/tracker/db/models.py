@@ -331,3 +331,22 @@ class Link(Base):
     evidence_url: Mapped[str | None] = mapped_column(Text)
     note: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class ReviewDecision(Base):
+    """A person's call on a low-confidence link: confirmed or rejected.
+
+    A confirm also adds a Link with method=manual. A reject hides the low link everywhere.
+    Every decision is mirrored to seeds/review_decisions.csv so a rebuild replays it.
+    """
+
+    __tablename__ = "review_decision"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    link_id: Mapped[int] = mapped_column(ForeignKey("link.id"), unique=True)
+    decision: Mapped[str] = mapped_column(String(16))  # confirm | reject
+    note: Mapped[str | None] = mapped_column(Text)
+    manual_link_id: Mapped[int | None] = mapped_column(ForeignKey("link.id"))
+    merged_site_id: Mapped[int | None] = mapped_column(Integer)  # emptied by a merge
+    kept_site_id: Mapped[int | None] = mapped_column(Integer)
+    decided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

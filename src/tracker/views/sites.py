@@ -23,10 +23,11 @@ from tracker.db.models import (
     Link,
     LinkType,
     RecordType,
+    ReviewDecision,
     Signal,
     Site,
 )
-from tracker.entities import RANK
+from tracker.entities import RANK, not_rejected
 from tracker.rollup import site_inventory
 from tracker.views.ticker import ROLE_LABEL, _doc_ref, _kind, _power, site_power
 
@@ -54,7 +55,7 @@ def _ticker(company: Company) -> tuple[str | None, str | None]:
 
 
 def _links(session: Session, **where) -> list[Link]:
-    query = select(Link)
+    query = select(Link).where(not_rejected())
     for column, value in where.items():
         query = query.where(getattr(Link, column) == value)
     return session.scalars(query.order_by(Link.id)).all()
@@ -76,7 +77,9 @@ def _companies_of(session: Session, entity_id: int) -> list[dict]:
                 **_step(cl),
             }
         )
-    return sorted(out, key=lambda c: -RANK[Confidence(c["confidence"])])
+    out.sort(key=lambda c: -RANK[Confidence(c["confidence"])])
+    seen: set[str] = set()  # strongest link per company (a review confirm adds a second)
+    return [c for c in out if not (c["company"] in seen or seen.add(c["company"]))]
 
 
 def _affiliates(session: Session, entity_id: int) -> list[dict]:
@@ -93,7 +96,14 @@ def _affiliates(session: Session, entity_id: int) -> list[dict]:
         if link.from_type == RecordType.ENTITY:
             other = session.get(Entity, link.from_id)
             out.append({"entity": other.legal_name, **_step(link)})
-    return out
+    best: dict[str, dict] = {}  # one row per sister entity, strongest link (a review adds one)
+    for a in out:
+        if (
+            a["entity"] not in best
+            or RANK[Confidence(a["confidence"])] > RANK[Confidence(best[a["entity"]]["confidence"])]
+        ):
+            best[a["entity"]] = a
+    return list(best.values())
 
 
 def owner_chain(session: Session, site: Site) -> list[dict]:
@@ -241,7 +251,10 @@ def equipment(session: Session, site: Site) -> list[dict]:
 def _review(session: Session, site: Site) -> list[dict]:
     """Low-confidence 'same site?' links touching this site, for a human to settle."""
     out = []
+    decided = set(session.scalars(select(ReviewDecision.link_id)))
     for link in _links(session, link_type=LinkType.SAME_SITE, confidence=Confidence.LOW):
+        if link.id in decided:
+            continue
         other_id = None
         if link.from_type == RecordType.SITE and link.from_id == site.id:
             other_id = link.to_id if link.to_type == RecordType.SITE else None
@@ -258,6 +271,12 @@ def _review(session: Session, site: Site) -> list[dict]:
                 {"site": {"id": other.id, "name": other.name}, "signal": None, **_step(link)}
             )
     return out
+
+
+def _merged_into(session: Session, site_id: int) -> dict | None:
+    from tracker.review import merged_into  # review builds on these views
+
+    return merged_into(session, site_id)
 
 
 def site_view(session: Session, site_id: int) -> dict | None:
@@ -295,6 +314,36 @@ def site_view(session: Session, site_id: int) -> dict | None:
         "owner_chain": chain,
         "companies": _site_companies(chain),
         "review": _review(session, site),
+        "merged_into": _merged_into(session, site.id),
+    }
+
+
+def site_row(session: Session, site: Site, signals: list[Signal] | None = None) -> dict:
+    """The site table's columns for one site."""
+    if signals is None:
+        signals = session.scalars(select(Signal).where(Signal.site_id == site.id)).all()
+    dated = [s for s in signals if s.filing_date]
+    latest = max(dated, key=lambda s: s.filing_date) if dated else None
+    power = site_power(session, site)
+    companies = _site_companies(owner_chain(session, site))
+    shown = [c for c in companies if c["confidence"] != "low"]
+    return {
+        "id": site.id,
+        "name": site.name,
+        "county": site.county,
+        "status": str(site.status),
+        "signal_types": sorted({str(s.type) for s in signals}),
+        "sources": len({s.source for s in signals}),
+        "signal_count": len(signals),
+        "latest_date": latest.filing_date.isoformat() if latest else None,
+        "generators": power["generators"],
+        "turbines": power["turbines"],
+        "mw": power["mw"],
+        "unsized": power["unsized"],
+        "companies": [
+            {"company": c["company"], "ticker": c["ticker"], "confidence": c["confidence"]}
+            for c in shown
+        ],
     }
 
 
@@ -303,30 +352,6 @@ def site_list(session: Session) -> list[dict]:
     rows = []
     for site in session.scalars(select(Site).order_by(Site.name)):
         signals = session.scalars(select(Signal).where(Signal.site_id == site.id)).all()
-        if not signals:
-            continue
-        latest = max(signals, key=lambda s: (s.filing_date or date.min, s.id))
-        power = site_power(session, site)
-        companies = _site_companies(owner_chain(session, site))
-        shown = [c for c in companies if c["confidence"] != "low"]
-        rows.append(
-            {
-                "id": site.id,
-                "name": site.name,
-                "county": site.county,
-                "status": str(site.status),
-                "signal_types": sorted({str(s.type) for s in signals}),
-                "sources": len({s.source for s in signals}),
-                "signal_count": len(signals),
-                "latest_date": latest.filing_date.isoformat() if latest.filing_date else None,
-                "generators": power["generators"],
-                "turbines": power["turbines"],
-                "mw": power["mw"],
-                "unsized": power["unsized"],
-                "companies": [
-                    {"company": c["company"], "ticker": c["ticker"], "confidence": c["confidence"]}
-                    for c in shown
-                ],
-            }
-        )
+        if signals:
+            rows.append(site_row(session, site, signals))
     return rows

@@ -32,7 +32,7 @@ from tracker.db.models import (
     Site,
     Ticker,
 )
-from tracker.entities import RANK
+from tracker.entities import RANK, not_rejected
 from tracker.reference.suppliers import SUPPLIERS, Supplier
 from tracker.rollup import site_inventory
 
@@ -141,6 +141,7 @@ def _company_ties(session: Session, company: Company) -> dict[int, list[dict]]:
             Link.from_type == RecordType.COMPANY,
             Link.from_id == company.id,
             Link.to_type == RecordType.ENTITY,
+            not_rejected(),
         )
     ).all()
     for cl in company_links:
@@ -150,6 +151,7 @@ def _company_ties(session: Session, company: Company) -> dict[int, list[dict]]:
                 Link.from_type == RecordType.ENTITY,
                 Link.from_id == entity.id,
                 Link.to_type == RecordType.SITE,
+                not_rejected(),
             )
         ):
             conf = min(el.confidence, cl.confidence, key=RANK.get)

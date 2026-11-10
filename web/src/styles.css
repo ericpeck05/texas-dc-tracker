@@ -318,3 +318,100 @@ button.linkish {
     overflow-x: auto;
   }
 }
+
+/* Review queue */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0 6px;
+}
+.tab {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font: 12px var(--sans);
+  padding: 5px 10px;
+  cursor: pointer;
+}
+.tab.here {
+  border-color: var(--text);
+}
+.keys {
+  margin: 4px 0 12px;
+}
+kbd {
+  font: 11px var(--mono);
+  border: 1px solid var(--faint);
+  border-radius: 3px;
+  padding: 0 4px;
+}
+.done {
+  color: var(--accent);
+  font-size: 12px;
+}
+.review-card {
+  border: 1px solid var(--line);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+.review-card.current {
+  border-color: var(--dim);
+  background: var(--panel);
+  cursor: default;
+}
+.review-why {
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.review-sides {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 12px;
+  align-items: start;
+}
+.review-side > * + * {
+  margin-top: 2px;
+}
+.review-vs {
+  font: 11px var(--mono);
+  padding-top: 16px;
+}
+.review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.review-actions input {
+  flex: 1 1 240px;
+  min-width: 0;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font: 12px var(--sans);
+  padding: 5px 8px;
+}
+.btn {
+  background: var(--bg);
+  border: 1px solid var(--dim);
+  color: var(--text);
+  font: 12px var(--sans);
+  padding: 5px 12px;
+  cursor: pointer;
+}
+.btn.confirm {
+  border-color: var(--supply);
+}
+.btn:disabled {
+  opacity: 0.5;
+}
+@media (max-width: 640px) {
+  .review-sides {
+    grid-template-columns: 1fr;
+  }
+  .review-vs {
+    padding-top: 0;
+  }
+}

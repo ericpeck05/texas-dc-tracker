@@ -1,5 +1,13 @@
 import { useEffect, useState } from "react";
-import { Conf, fetchJson, isNew, mw, num, signalLabel, statusLabel } from "./format";
+import {
+  Conf,
+  fetchJson,
+  isNew,
+  mw,
+  num,
+  signalLabel,
+  statusLabel,
+} from "./format";
 import type { ChainEntity, LinkStep, SiteView } from "./types";
 
 export function SitePage({ id }: { id: string }) {
@@ -34,22 +42,38 @@ export function SitePage({ id }: { id: string }) {
       <div className="ticker-head">
         <h1>{view.name}</h1>
         <div className="names">
-          {[view.city, view.county && `${view.county} County`].filter(Boolean).join(", ") ||
-            "location unknown"}
+          {[view.city, view.county && `${view.county} County`]
+            .filter(Boolean)
+            .join(", ") || "location unknown"}
           <span className="dim"> · {statusLabel(view.status)}</span>
           {view.tceq_rns.length > 0 && (
             <span className="dim mono"> · {view.tceq_rns.join(" ")}</span>
           )}
         </div>
+        {view.merged_into && (
+          <p className="done">
+            Merged in review into{" "}
+            <a href={`#/s/${view.merged_into.id}`}>{view.merged_into.name}</a>.
+          </p>
+        )}
         {view.aliases.length > 0 && (
-          <div className="dim small">Also filed as: {view.aliases.join(" · ")}</div>
+          <div className="dim small">
+            Also filed as: {view.aliases.join(" · ")}
+          </div>
         )}
       </div>
 
       <section className="stats">
-        <Stat label="Signals" value={num(view.signals.length)} sub={view.signal_types.map(signalLabel).join(", ")} />
+        <Stat
+          label="Signals"
+          value={num(view.signals.length)}
+          sub={view.signal_types.map(signalLabel).join(", ")}
+        />
         <Stat label="Sources" value={num(view.sources.length)} />
-        <Stat label="Generators" value={p.generators ? num(p.generators) : "–"} />
+        <Stat
+          label="Generators"
+          value={p.generators ? num(p.generators) : "–"}
+        />
         <Stat label="Turbines" value={p.turbines ? num(p.turbines) : "–"} />
         <Stat
           label="Permitted MW"
@@ -86,7 +110,8 @@ export function SitePage({ id }: { id: string }) {
       {view.review.length > 0 && (
         <section>
           <h2>
-            Open questions <span className="dim">· low-confidence links for review</span>
+            Open questions{" "}
+            <span className="dim">· low-confidence links for review</span>
           </h2>
           {view.review.map((r, i) => (
             <div key={i} className="step">
@@ -140,7 +165,8 @@ function Stat(props: { label: string; value: string; sub?: string }) {
 function Evidence({ step, label }: { step: LinkStep; label?: string }) {
   return (
     <span className="step-inline">
-      <Conf level={step.confidence} /> {label && <span className="dim">{label} </span>}
+      <Conf level={step.confidence} />{" "}
+      {label && <span className="dim">{label} </span>}
       {step.note ?? step.method.replace(/_/g, " ")}{" "}
       {step.evidence_url && (
         <a href={step.evidence_url} target="_blank" rel="noreferrer">
@@ -156,7 +182,8 @@ function OwnerChain({ chain }: { chain: ChainEntity[] }) {
   return (
     <section>
       <h2>
-        Owner chain <span className="dim">· legal entity on a filing → parent company</span>
+        Owner chain{" "}
+        <span className="dim">· legal entity on a filing → parent company</span>
       </h2>
       <table className="grid chain">
         <thead>
@@ -194,7 +221,9 @@ function OwnerChain({ chain }: { chain: ChainEntity[] }) {
                 ))}
                 <Affiliates items={e.affiliates} />
               </td>
-              <td>{e.chain_confidence ? <Conf level={e.chain_confidence} /> : "–"}</td>
+              <td>
+                {e.chain_confidence ? <Conf level={e.chain_confidence} /> : "–"}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -215,7 +244,9 @@ function Affiliates({ items }: { items: ChainEntity["affiliates"] }) {
       ))}
       {items.length > 2 && (
         <button className="linkish" onClick={() => setOpen(!open)}>
-          {open ? "show fewer" : `show ${items.length - 2} more sister entities`}
+          {open
+            ? "show fewer"
+            : `show ${items.length - 2} more sister entities`}
         </button>
       )}
     </>
@@ -226,7 +257,10 @@ function Timeline({ view }: { view: SiteView }) {
   return (
     <section>
       <h2>
-        Timeline <span className="dim">· every filing tied to this site, newest first</span>
+        Timeline{" "}
+        <span className="dim">
+          · every filing tied to this site, newest first
+        </span>
       </h2>
       <table className="grid">
         <thead>
@@ -251,13 +285,24 @@ function Timeline({ view }: { view: SiteView }) {
                 ) : (
                   (s.title ?? s.permit)
                 )}
-                {s.status && <span className="dim"> · {s.status.toLowerCase()}</span>}
+                {s.status && (
+                  <span className="dim"> · {s.status.toLowerCase()}</span>
+                )}
                 {s.equipment_rows > 0 && (
-                  <span className="dim"> · {s.equipment_rows} equipment rows</span>
+                  <span className="dim">
+                    {" "}
+                    · {s.equipment_rows} equipment rows
+                  </span>
                 )}
               </td>
               <td className="dim">{s.source_label}</td>
-              <td>{s.match ? <Evidence step={s.match} /> : <span className="dim">site ID</span>}</td>
+              <td>
+                {s.match ? (
+                  <Evidence step={s.match} />
+                ) : (
+                  <span className="dim">site ID</span>
+                )}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -271,7 +316,8 @@ function Equipment({ view }: { view: SiteView }) {
   return (
     <section>
       <h2>
-        Equipment <span className="dim">· from air permits, each unit counted once</span>
+        Equipment{" "}
+        <span className="dim">· from air permits, each unit counted once</span>
       </h2>
       <table className="grid">
         <thead>
@@ -304,15 +350,23 @@ function Equipment({ view }: { view: SiteView }) {
                 </td>
                 <td className="dim">{r.category.replace(/_/g, " ")}</td>
                 <td>
-                  {r.manufacturer ?? <span className="dim">make not stated</span>}{" "}
+                  {r.manufacturer ?? (
+                    <span className="dim">make not stated</span>
+                  )}{" "}
                   <span className="dim">{r.model ?? ""}</span>
                 </td>
                 <td className="r mono">{num(r.count)}</td>
-                <td className="r mono">{r.unit_size ? `${num(r.unit_size)} ${r.unit ?? ""}` : "—"}</td>
+                <td className="r mono">
+                  {r.unit_size ? `${num(r.unit_size)} ${r.unit ?? ""}` : "—"}
+                </td>
                 <td className="r mono">{r.mw ? mw(r.mw) : "—"}</td>
                 <td className="dim mono" title={r.snippet ?? ""}>
                   {r.page && permit.url ? (
-                    <a href={`${permit.url}#page=${r.page}`} target="_blank" rel="noreferrer">
+                    <a
+                      href={`${permit.url}#page=${r.page}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
                       p. {r.page}
                     </a>
                   ) : (

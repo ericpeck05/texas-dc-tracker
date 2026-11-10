@@ -34,6 +34,7 @@ from tracker.owners import (
     owner_queue,
     read_findings,
 )
+from tracker.review import apply_decisions, read_decisions
 from tracker.rollup import site_inventory
 
 app = typer.Typer(help="Texas data center tracker.", no_args_is_help=True)
@@ -137,6 +138,12 @@ def db_rebuild() -> None:
         missing = apply_findings(session, read_findings())
     for name in missing:
         typer.echo(f"  owner finding for unknown entity: {name}")
+    with session_scope(engine) as session:
+        decisions = read_decisions()
+        stale = apply_decisions(session, decisions)
+    typer.echo(f"  review decisions  {len(decisions) - len(stale)} of {len(decisions)} replayed")
+    for line in stale:
+        typer.echo(f"  review decision no longer matches a link: {line}")
 
 
 @pull_app.command("tceq")
