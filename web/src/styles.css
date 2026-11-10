@@ -538,3 +538,10 @@ kbd {
 .maker-detail .grid {
   margin-top: 6px;
 }
+.inferred {
+  font: 10px var(--mono);
+  color: var(--dim);
+  border: 1px dotted var(--faint);
+  padding: 0 3px;
+  cursor: help;
+}

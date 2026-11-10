@@ -90,7 +90,12 @@ export interface TickerView {
   supply: {
     makers: string[];
     sites: SupplySite[];
-    totals: { generators: number; turbines: number; mw: number; unsized: number };
+    totals: {
+      generators: number;
+      turbines: number;
+      mw: number;
+      unsized: number;
+    };
   };
   recent_signals: (DocRef & { site: string; site_id: number })[];
 }
@@ -122,7 +127,11 @@ export interface SiteRow {
   turbines: number;
   mw: number;
   unsized: number;
-  companies: { company: string; ticker: string | null; confidence: Confidence }[];
+  companies: {
+    company: string;
+    ticker: string | null;
+    confidence: Confidence;
+  }[];
   lat: number | null;
   lon: number | null;
   located: "exact" | "city" | "county" | null;
@@ -145,6 +154,7 @@ export interface EquipmentRow {
   count: number;
   manufacturer: string | null;
   model: string | null;
+  make_source: MakeSource;
   fuel: string | null;
   units: string | null;
   unit_size: number | null;
@@ -178,7 +188,12 @@ export interface SiteView {
   county: string | null;
   city: string | null;
   status: string;
-  status_history: { from: string | null; to: string; at: string | null; note: string | null }[];
+  status_history: {
+    from: string | null;
+    to: string;
+    at: string | null;
+    note: string | null;
+  }[];
   tceq_rns: string[];
   signal_types: string[];
   sources: string[];
@@ -186,15 +201,28 @@ export interface SiteView {
   power: Power;
   equipment: (DocRef & { other_documents: number; rows: EquipmentRow[] })[];
   owner_chain: ChainEntity[];
-  companies: { company: string; ticker: string | null; confidence: Confidence; roles: string[] }[];
-  review: (LinkStep & { site: { id: number; name: string } | null; signal: DocRef | null })[];
+  companies: {
+    company: string;
+    ticker: string | null;
+    confidence: Confidence;
+    roles: string[];
+  }[];
+  review: (LinkStep & {
+    site: { id: number; name: string } | null;
+    signal: DocRef | null;
+  })[];
   merged_into: { id: number; name: string } | null;
 }
 
 export type ReviewKind = "same_site" | "filing" | "parent" | "affiliate";
 
 export type ReviewRecord =
-  | (SiteRow & { kind: "site"; city: string | null; tceq_rns: string[]; aliases: string[] })
+  | (SiteRow & {
+      kind: "site";
+      city: string | null;
+      tceq_rns: string[];
+      aliases: string[];
+    })
   | {
       kind: "signal";
       id: number;
@@ -212,7 +240,13 @@ export type ReviewRecord =
       sites: { id: number; name: string; role: string }[];
       companies: { company: string; confidence: Confidence }[];
     }
-  | { kind: "company"; id: number; name: string; ticker: string | null; role: string };
+  | {
+      kind: "company";
+      id: number;
+      name: string;
+      ticker: string | null;
+      role: string;
+    };
 
 export interface ReviewItem {
   link_id: number;
@@ -240,8 +274,17 @@ export interface FeedItem {
   permit: string | null;
   status: string | null;
   source_label: string;
-  site: { id: number; name: string; county: string | null; status: string } | null;
-  companies: { company: string; ticker: string | null; confidence: Confidence }[];
+  site: {
+    id: number;
+    name: string;
+    county: string | null;
+    status: string;
+  } | null;
+  companies: {
+    company: string;
+    ticker: string | null;
+    confidence: Confidence;
+  }[];
   equipment: { generators: number; turbines: number; mw: number };
   revised: boolean;
 }
@@ -257,6 +300,7 @@ export interface FeedResponse {
 export interface MakerUnitRow {
   maker: string;
   model: string | null;
+  make_source: MakeSource;
   kind: "generators" | "turbines";
   count: number;
   unit_size: number | null;
@@ -280,7 +324,10 @@ export interface MakerRow {
   mw: number;
   unsized: number;
   sites: number;
-  quarters: Record<string, { generators: number; turbines: number; mw: number }>;
+  quarters: Record<
+    string,
+    { generators: number; turbines: number; mw: number }
+  >;
   models: { model: string; count: number; mw: number; kind: string }[];
   rows: MakerUnitRow[];
 }
@@ -292,3 +339,7 @@ export interface Scoreboard {
   totals: { generators: number; turbines: number; mw: number; unsized: number };
   known_totals: { generators: number; turbines: number; mw: number };
 }
+
+// Where a maker came from: the counting sentence, elsewhere in the same document (the only
+// maker it names), or another document for the same permit.
+export type MakeSource = "sentence" | "document" | "permit" | null;

@@ -220,13 +220,15 @@ def equipment(session: Session, site: Site) -> list[dict]:
                 continue
             size, unit = permit.size(row)
             kind = _kind(row.category)
+            make, model, make_source = permit.make(row)
             rows.append(
                 {
                     "category": str(row.category),
                     "kind": kind,
                     "count": sign * row.count,
-                    "manufacturer": row.manufacturer,
-                    "model": row.model,
+                    "manufacturer": make,
+                    "model": model,
+                    "make_source": make_source,
                     "fuel": row.fuel,
                     "units": row.epns,
                     "unit_size": size,

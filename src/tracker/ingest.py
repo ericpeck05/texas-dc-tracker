@@ -193,6 +193,7 @@ def ingest_tceq_air(
                 method=m.method,
                 role=m.role,
                 epns=m.epns,
+                make_source=m.make_source,
             )
         )
     session.flush()

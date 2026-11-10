@@ -20,10 +20,10 @@ from datetime import date
 from typing import Any
 
 from tracker.db.models import EquipmentCategory
-from tracker.reference.suppliers import find_supplier
+from tracker.reference.suppliers import SUPPLIERS, find_supplier
 
 EXTRACTOR_NAME = "tceq_air_rules"
-EXTRACTOR_VERSION = "0.4.0"
+EXTRACTOR_VERSION = "0.5.0"
 
 LOOKBACK_CHARS = 160
 LOOKAHEAD_CHARS = 110
@@ -146,7 +146,7 @@ TANK_SIZE_RE = re.compile(
     re.IGNORECASE,
 )
 MODEL_RE = re.compile(
-    r"\s*(?:Model\s+)?(?P<model>(?:[A-Z][a-z]+\s)?[A-Z0-9][A-Za-z0-9\-/]*\d[A-Za-z0-9\-/]*)"
+    r"\s*(?:Model\s+)?(?P<model>(?:[A-Z][a-z]+\s)?[A-Z0-9][A-Za-z0-9\-/:]*\d[A-Za-z0-9\-/:]*)"
 )
 
 DIESEL_RE = re.compile(r"\b(?:diesel|ULSD|distillate|fuel\s+oil)\b", re.IGNORECASE)
@@ -253,6 +253,9 @@ class EquipmentMention:
     # Unit labels when the permit gives them, e.g. "GEN-1 through GEN-3". Two groups with
     # the same make and size but different labels are different units.
     epns: str | None = None
+    # Where the make came from: "sentence" (the sentence that counts the units) or
+    # "document" (the only generator or turbine maker this document names anywhere).
+    make_source: str | None = None
 
     def key(self) -> tuple:
         return (
@@ -608,7 +611,10 @@ def _scan_page(text: str, page_no: int) -> list[EquipmentMention]:
         unit_size = float(size_m.group("num").replace(",", "")) if size_m else None
         unit = _normalize_unit(size_m.group("unit")) if size_m else None
 
-        manufacturer, model, ticker = _make_model(context)
+        # The maker must be in the sentence that counts the units, not the next one.
+        end = SENTENCE_END_RE.search(ahead)
+        make_context = f"{descriptor} {noun_text} {ahead[: end.start()] if end else ahead}"
+        manufacturer, model, ticker = _make_model(make_context)
         epn_m = EPN_RANGE_RE.search(ahead)
         # Role cues can sit before a colon ("Upon authorization, the site will include the
         # following emission sources: ..."), so look back to the sentence start.
@@ -917,6 +923,92 @@ def _metadata(text: str, result: AirPermitExtraction) -> None:
             result.permits_by_rule.append(pbr)
 
 
+_TURBINE_WORD_RE = re.compile(r"\bturbines?\b", re.IGNORECASE)
+_ENGINE_WORD_RE = re.compile(
+    r"\b(?:engines?|generators?|gensets?|generator\s+sets?)\b", re.IGNORECASE
+)
+_FIRE_PUMP_NEAR_RE = re.compile(r"\bfire[\s-]+(?:water\s+)?pump", re.IGNORECASE)
+_MAKE_WINDOW = 120
+# Models that only exist as turbines, whatever word the table puts next to them.
+_TURBINE_MODEL_RE = re.compile(r"^(?:LMS?\d|TM\d|Titan|Taurus|Mars|Centaur|Mercury|SGT)", re.I)
+
+
+def _family(category: EquipmentCategory) -> str | None:
+    if category is EquipmentCategory.GAS_TURBINE:
+        return "turbine"
+    if category in _GENERATOR_FAMILY:
+        return "engine"
+    return None
+
+
+def document_makes(text: str) -> dict[str, dict[str, set[str | None]]]:
+    """Every generator or turbine maker a document names: family -> maker -> models.
+
+    A mention counts when an equipment word sits within a short window of it; fire pump
+    engines are left out (they are not counted as generators)."""
+    flat = " ".join(text.split())
+    out: dict[str, dict[str, set[str | None]]] = {"engine": {}, "turbine": {}}
+    pos = 0
+    while (found := find_supplier(flat[pos:])) is not None:
+        supplier, m = found
+        start, end = pos + m.start(), pos + m.end()
+        pos = max(end, start + 1)
+        window = flat[max(0, start - _MAKE_WINDOW) : end + _MAKE_WINDOW]
+        if _FIRE_PUMP_NEAR_RE.search(flat[max(0, start - 50) : end + 50]):
+            continue
+        near_turbine = _TURBINE_WORD_RE.search(window)
+        near_engine = _ENGINE_WORD_RE.search(window)
+        if not (near_turbine or near_engine):
+            continue
+        mm = MODEL_RE.match(flat, end)
+        model = mm.group("model").removeprefix("Model ").strip() if mm else None
+        if (model and _TURBINE_MODEL_RE.match(model)) or supplier.name == "Solar Turbines":
+            family = "turbine"
+        elif near_turbine and near_engine:
+            # Nearest equipment word decides.
+            t = abs(near_turbine.start() - _MAKE_WINDOW)
+            e = abs(near_engine.start() - _MAKE_WINDOW)
+            family = "turbine" if t <= e else "engine"
+        else:
+            family = "turbine" if near_turbine else "engine"
+        out[family].setdefault(supplier.name, set()).add(model)
+    return out
+
+
+def _fill_makes(text: str, mentions: list[EquipmentMention]) -> list[EquipmentMention]:
+    """Units whose own sentence names no maker get the document's maker, but only when the
+    document names exactly one maker for that kind of equipment."""
+    makes: dict[str, dict[str, set[str | None]]] | None = None
+    tickers = {s.name: s.ticker for s in SUPPLIERS}
+    out = []
+    for m in mentions:
+        if m.manufacturer:
+            out.append(m if m.make_source else replace(m, make_source="sentence"))
+            continue
+        family = _family(m.category)
+        if family is None:
+            out.append(m)
+            continue
+        if makes is None:
+            makes = document_makes(text)
+        found = makes[family]
+        if len(found) != 1:
+            out.append(m)
+            continue
+        maker, models = next(iter(found.items()))
+        named = {x for x in models if x}
+        out.append(
+            replace(
+                m,
+                manufacturer=maker,
+                model=m.model or (next(iter(named)) if len(named) == 1 else None),
+                ticker=tickers.get(maker),
+                make_source="document",
+            )
+        )
+    return out
+
+
 def extract_air_permit(text: str) -> AirPermitExtraction:
     result = AirPermitExtraction()
     _metadata(text, result)
@@ -939,4 +1031,5 @@ def extract_air_permit(text: str) -> AirPermitExtraction:
     covered = {m.category for m in table}
     result.superseded_mentions = [m for m in result.equipment if m.category in covered]
     result.equipment = [m for m in result.equipment if m.category not in covered] + table
+    result.equipment = _fill_makes(text, result.equipment)
     return result

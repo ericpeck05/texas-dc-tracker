@@ -216,7 +216,14 @@ by MW or unit count, with a column per quarter. Counts are the same netted units
 site and ticker pages. A unit's quarter is when its permit was first filed (the earliest
 dated document for that permit at the site), the closest public sign of when it was
 ordered. Shares are of units whose make the permit names; most permits name none, so the
-"Make not stated" row is shown and shares read as a sample. Click a manufacturer for its
+"Make not stated" row is shown and shares read as a sample.
+
+Makes come from, in order: the sentence or table row that counts the units; a model family
+only one maker sells (TM2500 and LM2500 are GE, QSK and HSK are Cummins, G3520 is
+Caterpillar, 20V4000 is mtu); the only generator or turbine maker the document names
+anywhere; or the only one another document for the same permit names. The last two are
+marked "inferred" on the scoreboard and site pages. A document naming two makers for the
+same kind of equipment leaves its units unnamed rather than guess. Click a manufacturer for its
 models, sites, and the permit page behind every count.
 
 ## Review queue

@@ -78,3 +78,19 @@ export function fetchJson<T>(url: string): Promise<T> {
     return r.json();
   });
 }
+
+const INFERRED: Record<string, string> = {
+  document:
+    "Inferred: the only maker this permit document names, not stated with these units",
+  permit: "Inferred: named in another document for the same permit",
+};
+
+// Marks a maker that was not stated in the sentence that counts the units.
+export function Inferred({ source }: { source: string | null | undefined }) {
+  if (!source || !INFERRED[source]) return null;
+  return (
+    <span className="inferred" title={INFERRED[source]}>
+      inferred
+    </span>
+  );
+}

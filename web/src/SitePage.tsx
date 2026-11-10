@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  Inferred,
   Conf,
   fetchJson,
   isNew,
@@ -353,7 +354,8 @@ function Equipment({ view }: { view: SiteView }) {
                   {r.manufacturer ?? (
                     <span className="dim">make not stated</span>
                   )}{" "}
-                  <span className="dim">{r.model ?? ""}</span>
+                  <span className="dim">{r.model ?? ""}</span>{" "}
+                  <Inferred source={r.make_source} />
                 </td>
                 <td className="r mono">{num(r.count)}</td>
                 <td className="r mono">

@@ -56,10 +56,12 @@ def unit_rows(session: Session) -> list[dict]:
                 if not sign or kind is None:
                     continue
                 size, unit = permit.size(row)
+                make, model, make_source = permit.make(row)
                 rows.append(
                     {
-                        "maker": row.manufacturer or UNKNOWN,
-                        "model": row.model,
+                        "maker": make or UNKNOWN,
+                        "model": model,
+                        "make_source": make_source,
                         "kind": kind,
                         "count": sign * row.count,
                         "unit_size": size,

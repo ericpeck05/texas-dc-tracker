@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
-import { fetchJson, mw, num, statusLabel } from "./format";
+import { fetchJson, Inferred, mw, num, statusLabel } from "./format";
 import type { MakerRow, Scoreboard } from "./types";
 
 type Kind = "all" | "generators" | "turbines";
@@ -68,7 +68,7 @@ export function SupplierPage() {
           <>
             {num(units(unknown, kind))} of{" "}
             {num(makers.reduce((s, m) => s + units(m, kind), 0))} permitted
-            units name no manufacturer, so read shares as a sample.
+            units name no manufacturer, so read shares as a sample. A maker marked "inferred" is the only one the permit names, not stated with those units.
           </>
         )}
       </p>
@@ -248,7 +248,9 @@ function MakerDetail({ m, kind }: { m: MakerRow; kind: Kind }) {
                 <a href={`#/s/${r.site.id}`}>{r.site.name}</a>{" "}
                 <span className="dim small">{statusLabel(r.site.status)}</span>
               </td>
-              <td className="dim">{r.model ?? "not stated"}</td>
+              <td className="dim">
+                {r.model ?? "not stated"} <Inferred source={r.make_source} />
+              </td>
               <td className="r mono">{num(r.count)}</td>
               <td className="r mono">
                 {r.unit_size ? `${num(r.unit_size)} ${r.unit ?? ""}` : "—"}

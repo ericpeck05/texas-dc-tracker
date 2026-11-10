@@ -255,6 +255,9 @@ class Equipment(Base):
     # total, existing, added, removed, or unknown: what the sentence says about these units
     role: Mapped[str | None] = mapped_column(String(16))
     epns: Mapped[str | None] = mapped_column(String(64))  # unit labels, e.g. GEN-1..GEN-3
+    # sentence (named with the units), document (the only maker the document names), or
+    # permit (named in another document for the same permit; set by rollup, not stored)
+    make_source: Mapped[str | None] = mapped_column(String(16))
 
     signal: Mapped[Signal] = relationship(back_populates="equipment")
     site: Mapped[Site | None] = relationship(back_populates="equipment")

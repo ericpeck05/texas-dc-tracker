@@ -236,16 +236,18 @@ def supply_side(session: Session, symbol: str) -> dict:
             for row in permit.rows:
                 sign = permit.sign(row)
                 kind = _kind(row.category)
-                if not sign or kind is None or row.manufacturer not in makers:
+                make, model, make_source = permit.make(row)
+                if not sign or kind is None or make not in makers:
                     continue
                 size, unit = permit.size(row)
-                key = (kind, row.manufacturer, row.model, size, unit)
+                key = (kind, make, model, size, unit)
                 u = units.setdefault(
                     key,
                     {
                         "kind": kind,
-                        "manufacturer": row.manufacturer,
-                        "model": row.model,
+                        "manufacturer": make,
+                        "model": model,
+                        "make_source": make_source,
                         "unit_size": size,
                         "unit": unit,
                         "count": 0,

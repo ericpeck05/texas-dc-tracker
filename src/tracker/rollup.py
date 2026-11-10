@@ -31,7 +31,7 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from tracker.db.models import Equipment, Signal, Site
+from tracker.db.models import Equipment, EquipmentCategory, Signal, Site
 
 
 @dataclass
@@ -43,6 +43,18 @@ class PermitInventory:
     # Unit sizes the counting document leaves out (a MAERT has none), taken from another
     # document for the same permit with the same category, make, and model.
     borrowed_sizes: dict[int, Equipment] = field(default_factory=dict)
+    # Makes the counting document leaves out, from another document for the same permit
+    # that names exactly one maker for that kind of equipment: row id -> (make, model).
+    borrowed_makes: dict[int, tuple[str, str | None]] = field(default_factory=dict)
+
+    def make(self, row: Equipment) -> tuple[str | None, str | None, str | None]:
+        """(manufacturer, model, where the make came from)."""
+        if row.manufacturer:
+            return row.manufacturer, row.model, row.make_source or "sentence"
+        if row.id in self.borrowed_makes:
+            make, model = self.borrowed_makes[row.id]
+            return make, row.model or model, "permit"
+        return None, row.model, None
 
     def size(self, row: Equipment) -> tuple[float | None, str | None]:
         src = self.borrowed_sizes.get(row.id, row)
@@ -86,6 +98,18 @@ class SiteInventory:
                 elif size and unit == "kW":
                     t["mw"] += sign * row.count * size / 1000
         return dict(out)
+
+
+def _family(category: EquipmentCategory) -> str | None:
+    if category is EquipmentCategory.GAS_TURBINE:
+        return "turbine"
+    if category in (
+        EquipmentCategory.GENERATOR,
+        EquipmentCategory.DIESEL_GENERATOR,
+        EquipmentCategory.GAS_GENERATOR,
+    ):
+        return "engine"
+    return None
 
 
 def _withdrawn(signal: Signal) -> bool:
@@ -135,5 +159,20 @@ def site_inventory(session: Session, site: Site) -> SiteInventory:
                 if match:
                     permit.borrowed_sizes[row.id] = match
                     break
+        for row in permit.rows:
+            family = _family(row.category)
+            if row.manufacturer or family is None:
+                continue
+            named = {
+                (e.manufacturer, e.model)
+                for sig in others
+                for e in sig.equipment
+                if e.manufacturer and _family(e.category) == family
+            }
+            makers = {make for make, _ in named}
+            if len(makers) == 1:
+                make = makers.pop()
+                models = {model for mk, model in named if mk == make and model}
+                permit.borrowed_makes[row.id] = (make, models.pop() if len(models) == 1 else None)
         inventory.permits.append(permit)
     return inventory
