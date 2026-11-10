@@ -233,3 +233,35 @@ def test_decisions_replay_on_a_fresh_database(tmp_path):
         assert review_queue(session)["counts"]["filing"] == 0
         assert session.get(Signal, ids["abatement"]).site_id == ids["b"]
         assert session.get(Site, ids["old"]).aliases == ["New Campus"]
+
+
+def test_claude_confirm_is_medium_and_labeled(tmp_path):
+    from tracker.db.models import Confidence, Link, LinkMethod
+    from tracker.review import review_and_save
+
+    engine, _ids_ = _setup(tmp_path)
+    path = tmp_path / "decisions.csv"
+    with session_scope(engine) as session:
+        items = review_queue(session)["items"]
+        parent = next(i for i in items if i["kind"] == "parent")
+        review_and_save(session, parent["link_id"], "confirm", "same office", path, "claude")
+        link = session.scalar(select(Link).where(Link.method == LinkMethod.CLAUDE_REVIEW))
+        assert link.confidence == Confidence.MEDIUM
+        assert link.note == "confirmed by Claude: same office"
+    (row,) = read_decisions(path)
+    assert row.decided_by == "claude"
+
+
+def test_name_ref_prefers_the_site_without_an_rn(tmp_path):
+    from tracker.db.models import Site
+    from tracker.review import resolve_ref
+
+    engine = make_engine(f"sqlite:///{tmp_path / 't.db'}")
+    init_db(engine)
+    with session_scope(engine) as session:
+        permitted = Site(name="Temple Data Center", tceq_rns=["RN111448668"])
+        registry = Site(name="Temple Data Center")
+        session.add_all([permitted, registry])
+        session.flush()
+        assert resolve_ref(session, "site", "name:Temple Data Center") == registry.id
+        assert resolve_ref(session, "site", "rn:RN111448668") == permitted.id

@@ -110,6 +110,21 @@ def _match_or_create_site(
     return site
 
 
+_KIND_LABEL = {
+    "pbr_registration_letter": "permit-by-rule registration letter",
+    "pbr_technical_review": "permit-by-rule technical review",
+    "standard_permit_registration_letter": "standard permit registration letter",
+    "nsr_technical_review": "standard permit technical review",
+    "title_v_statement_of_basis": "Title V statement of basis",
+}
+
+
+def air_title(kind: str | None, permit_number: str | None) -> str:
+    """'TCEQ standard permit registration letter 183234', not the download URL."""
+    label = _KIND_LABEL.get(kind or "", "air permit document")
+    return f"TCEQ {label}" + (f" {permit_number}" if permit_number else "")
+
+
 def ingest_tceq_air(
     session: Session,
     content: bytes,
@@ -154,7 +169,7 @@ def ingest_tceq_air(
         document=doc,
         type=SignalType.AIR_PERMIT,
         source=source,
-        title=filename or url,
+        title=air_title(parsed.document_kind, parsed.permit_number),
         permit_number=parsed.permit_number,
         rn=parsed.rn,
         filing_date=date.fromisoformat(parsed.document_date) if parsed.document_date else None,

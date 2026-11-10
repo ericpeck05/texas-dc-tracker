@@ -9,10 +9,16 @@ public companies that own it, rent it, and supply it.
 
 ## Status
 
-Phase 1: TCEQ air permits. Collects permit documents, saves each raw file with a SHA-256
-hash, and extracts generator and turbine counts, unit sizes, fuel, and make/model into SQLite.
+Built and running. Seven public sources feed one database, rebuilt from saved snapshots
+with `tracker db rebuild`: TCEQ air permits (generator and turbine counts, sizes, makes),
+the Comptroller data center registry and Chapter 312 tax abatements, the TCEQ Central
+Registry, PUC dockets, SEC filings, and franchise tax records for owner lookups. The weekly
+refresh collects all of them and reports what changed. The web app has the feed, a map and
+site list, site pages, ticker pages, the supplier scoreboard, and the review queue.
 
-Pilot counties: Taylor, Milam, Bexar, Tarrant, Ellis, Hunt, Ward.
+As of November 2026: 322 sites with filings, 635 filings, 2,118 links. The review queue was
+worked once by Claude (see below); about 210 genuinely unclear items are left for a person.
+Not investment advice.
 
 ## Quick start
 
@@ -289,6 +295,25 @@ method `manual` and high confidence; a reject hides the guess from every view (l
 never deleted). Each decision also goes to `seeds/review_decisions.csv`, keyed by RN, site
 name, filing number, or legal name rather than database ids, and `tracker db rebuild`
 replays it. That file is committed: notes should name companies and sources, never people.
+
+**Worked by Claude.** In November 2026 Claude made one pass over the queue
+(`scripts/claude_review.py`, rules in its docstring), recorded with `decided_by=claude`.
+Its confirms add a link with method `claude_review` at **medium** confidence and the note
+"confirmed by Claude", so they never read as a person's check; a person can still review
+them. It confirmed 256 items (phases of one campus, all 27 parent links, sister LLCs of one
+company or at one company's own office) and rejected 12 (different counties, developers,
+or regulated entities). Ambiguous items stay open: Microsoft's unnamed San Antonio
+registry entries, the Lancaster and Lewisville pairs, the three Pyote developers, the
+Dickens and Skybox filings, and sister LLCs at shared or mixed addresses.
+
+## Known data conflicts
+
+- **Circe Energy E Monahans (permit 183234):** the May 2026 technical review names Cummins
+  HSK78G engines; the June 2026 registration letter, the issued authorization, lists 200
+  Caterpillar G3520K (ENG-1 to ENG-200). The tracker follows the letter.
+- **Sentry Gateway (permit 156500):** the document says 14 generators and its emissions
+  table lists 14, but its operating-limit groups name 15 units (3 MTU, 1 Cummins QSX15, and
+  ENG4-6 plus ENG8-15 Cummins QSK95). Makes are left unassigned rather than guessed.
 
 ## Ticker pages
 

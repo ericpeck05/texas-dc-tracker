@@ -140,7 +140,9 @@ export function ReviewPage() {
         Confirm adds a manual, high-confidence link; reject hides the guess
         everywhere. Every decision is saved to{" "}
         <span className="mono">seeds/review_decisions.csv</span> and replayed on
-        rebuild.{" "}
+        rebuild. Clear-cut items were worked by Claude: its confirms are medium
+        confidence and say "confirmed by Claude", never shown as a person's
+        check.{" "}
         {queue.decided.confirm + queue.decided.reject > 0 &&
           `${num(queue.decided.confirm)} confirmed, ${num(queue.decided.reject)} rejected so far.`}
       </p>

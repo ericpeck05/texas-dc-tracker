@@ -93,6 +93,7 @@ class LinkMethod(StrEnum):
     NEWS = "news"
     LLM = "llm"
     MANUAL = "manual"
+    CLAUDE_REVIEW = "claude_review"  # confirmed in review by Claude, not a person
 
 
 class Confidence(StrEnum):
@@ -348,6 +349,7 @@ class ReviewDecision(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     link_id: Mapped[int] = mapped_column(ForeignKey("link.id"), unique=True)
     decision: Mapped[str] = mapped_column(String(16))  # confirm | reject
+    decided_by: Mapped[str] = mapped_column(String(16), default="person")  # person | claude
     note: Mapped[str | None] = mapped_column(Text)
     manual_link_id: Mapped[int | None] = mapped_column(ForeignKey("link.id"))
     merged_site_id: Mapped[int | None] = mapped_column(Integer)  # emptied by a merge

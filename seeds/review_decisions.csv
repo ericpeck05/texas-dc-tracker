@@ -1,2 +1,265 @@
-decided_at,decision,kind,link_type,from_type,from_ref,to_type,to_ref,note
-2026-11-10,confirm,same_site,same_site,site,name:Cipher Barber Lake LLC Data Center,site,rn:RN112273891,Both Mitchell County; Cipher Barber Lake campus near Colorado City
+decided_at,decision,kind,link_type,from_type,from_ref,to_type,to_ref,note,decided_by
+2026-11-10,confirm,same_site,same_site,site,name:Cipher Barber Lake LLC Data Center,site,rn:RN112273891,Both Mitchell County; Cipher Barber Lake campus near Colorado City,claude
+2026-11-10,confirm,same_site,same_site,site,rn:RN106469570,site,rn:RN111498556,"same 'Austin Data Center 2' project, Travis County",claude
+2026-11-10,confirm,same_site,same_site,site,name:Borden County Data Center Phase 2,site,rn:RN112441258,phase 2 of the same Borden County campus,claude
+2026-11-10,confirm,same_site,same_site,site,name:Milam County Data Center Phase 2,site,rn:RN112540901,phase 2 of the same Milam County campus,claude
+2026-11-10,reject,same_site,same_site,site,name:C1 Bosque II LLC,site,name:C1 Bosque I,different occupants (Amazon vs Google),claude
+2026-11-10,reject,same_site,same_site,site,name:Cyrusone LLC - Houston West III Data Center,site,rn:RN102024957,different counties (Fort Bend vs Harris),claude
+2026-11-10,confirm,same_site,same_site,site,name:Denton Data Center,site,rn:RN111355798,Core Scientific's Denton campus in both,claude
+2026-11-10,confirm,same_site,same_site,site,name:Hutto Data Center 3 LLC,site,rn:RN111788766,Google Hutto campus building LLC,claude
+2026-11-10,confirm,same_site,same_site,site,name:Hutto Data Center 4 LLC,site,rn:RN111788766,Google Hutto campus building LLC,claude
+2026-11-10,confirm,same_site,same_site,site,name:Lancium Clean Campus - Childress 1,site,name:Childress Data Center,Lancium's Childress campus,claude
+2026-11-10,confirm,same_site,same_site,site,"name:Poolside Data Center, Pecos County I",site,rn:RN112406533,"Poolside's Pecos County campus, phase I",claude
+2026-11-10,confirm,same_site,same_site,site,name:Project Goodnight,site,rn:RN112229901,Crusoe's Goodnight project,claude
+2026-11-10,confirm,same_site,same_site,site,name:Red Oak Texas Data Center 2,site,name:Red Oak Texas Data Center,second building of Compass's Red Oak campus,claude
+2026-11-10,confirm,same_site,same_site,site,name:Riot Corsicana Data Center I,site,name:Riot Corsicana Data Center,Riot's Corsicana campus,claude
+2026-11-10,confirm,same_site,same_site,site,name:Riot Corsicana Data Center 02,site,name:Riot Corsicana Data Center,Riot's Corsicana campus,claude
+2026-11-10,confirm,same_site,same_site,site,name:Riot Rockdale Data Center 1,site,name:Riot Rockdale,Riot's Rockdale campus,claude
+2026-11-10,confirm,same_site,same_site,site,name:Riot Rockdale Data Center 2,site,name:Riot Rockdale,Riot's Rockdale campus,claude
+2026-11-10,confirm,same_site,same_site,site,name:Scurry County Data Center Building 2,site,name:Scurry County Data Center Building,building 2 of the same Scurry County campus,claude
+2026-11-10,confirm,same_site,same_site,site,name:Temple Data Center,site,rn:RN111448668,Meta's Temple data center in both,claude
+2026-11-10,reject,same_site,same_site,site,rn:RN105295687,site,rn:RN111852240,a different regulated entity at Vantage's campus,claude
+2026-11-10,reject,same_site,same_site,site,rn:RN105295687,site,rn:RN110660743,a different regulated entity,claude
+2026-11-10,reject,same_site,same_site,site,rn:RN107106684,site,rn:RN111852240,a different regulated entity at Vantage's campus,claude
+2026-11-10,reject,same_site,same_site,site,rn:RN107106684,site,rn:RN110660743,a different regulated entity,claude
+2026-11-10,reject,same_site,same_site,site,rn:RN111356929,site,rn:RN111852240,a different regulated entity at Vantage's campus,claude
+2026-11-10,reject,same_site,same_site,site,rn:RN111356929,site,rn:RN110660743,a different regulated entity,claude
+2026-11-10,confirm,filing,same_site,signal,comptroller_ch312|approval|000015041||,site,name:Riot Corsicana Data Center,Navarro County abatement: Riot's Navarro County campus,claude
+2026-11-10,confirm,parent,parent_of,company,Cipher Mining,entity,Cipher Mining Technologies Inc.,entity carries the company's name,claude
+2026-11-10,confirm,parent,parent_of,company,Cipher Mining,entity,Cipher Stingray LLC,entity carries the company's name,claude
+2026-11-10,confirm,parent,parent_of,company,Cipher Mining,entity,Cipher Barber Lake LLC,entity carries the company's name,claude
+2026-11-10,confirm,parent,parent_of,company,Enchanted Rock,entity,"Enchanted Rock, LLC",entity carries the company's name,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"POWER DEPOT - TEXAS GROUP A, LLC",entity,"Enchanted Rock, LLC",shared address is Enchanted Rock's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"ELECTRANET REP I, LLC",entity,"Enchanted Rock, LLC",shared address is Enchanted Rock's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"ELECTRANET QSE I, LLC",entity,"Enchanted Rock, LLC",shared address is Enchanted Rock's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"ELECTRANET POWER, LLC",entity,"Enchanted Rock, LLC",shared address is Enchanted Rock's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"TEXAS MICROGRID, LLC",entity,"Enchanted Rock, LLC",shared address is Enchanted Rock's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"EROCK ON-SITE, LLC",entity,"Enchanted Rock, LLC",shared address is Enchanted Rock's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"EROCK, INC.",entity,"Enchanted Rock, LLC",shared address is Enchanted Rock's own office,claude
+2026-11-10,confirm,parent,parent_of,company,Sabey Data Centers,entity,SDC Austin III LLC,entity carries the company's name,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,SDC - Austin LLC,entity,Sabey Data Center Properties LLC,both belong to Sabey Data Centers,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,Sabey Data Center Properties LLC,entity,SDC Austin III LLC,both belong to Sabey Data Centers,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,Sabey Data Center Properties LLC,entity,SDC - Austin LLC,both belong to Sabey Data Centers,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,INTERGATE.SERVICES LLC,entity,SDC Austin III LLC,shared address is Sabey Data Centers's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,INTERGATE.SERVICES LLC,entity,Sabey Data Center Properties LLC,shared address is Sabey Data Centers's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,INTERGATE.SERVICES LLC,entity,SDC - Austin LLC,shared address is Sabey Data Centers's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,SDC AUSTIN I LLC,entity,Sabey Data Center Properties LLC,shared address is Sabey Data Centers's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,SDC Austin III LLC,entity,Sabey Data Center Properties LLC,both belong to Sabey Data Centers,claude
+2026-11-10,confirm,parent,parent_of,company,Sabey Data Centers,entity,SDC - Austin LLC,entity carries the company's name,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,SDC AUSTIN II LLC,entity,Sabey Data Center Properties LLC,shared address is Sabey Data Centers's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,SABEY DEVCO LLC,entity,SDC Austin III LLC,both belong to Sabey Data Centers,claude
+2026-11-10,confirm,parent,parent_of,company,Sabey Data Centers,entity,Sabey Data Center Properties LLC,entity carries the company's name,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,SABEY DEVCO LLC,entity,SDC - Austin LLC,both belong to Sabey Data Centers,claude
+2026-11-10,confirm,parent,parent_of,company,Compass Datacenters,entity,"Compass Datacenters DFW IIIA, LLC",entity carries the company's name,claude
+2026-11-10,confirm,parent,parent_of,company,Compass Datacenters,entity,"Compass Datacenters DFW III, LLC",entity carries the company's name,claude
+2026-11-10,confirm,parent,parent_of,company,Compass Datacenters,entity,"Compass Datacenters, LLC",entity carries the company's name,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,Google Energy LLC,entity,"Design, LLC",both belong to Alphabet (Google),claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,Google Energy LLC,entity,Sharka LLC,both belong to Alphabet (Google),claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,META PAYMENTS INC.,entity,Polmer LLC,shared address is Meta's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,META PAYMENTS INC.,entity,Wurldwide LLC,shared address is Meta's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"SANZARU GAMES, INC.",entity,Polmer LLC,shared address is Meta's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"SANZARU GAMES, INC.",entity,Wurldwide LLC,shared address is Meta's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,META PLATFORMS TECHNOLOGIES LLC,entity,Polmer LLC,both belong to Meta,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,META PLATFORMS TECHNOLOGIES LLC,entity,Wurldwide LLC,both belong to Meta,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"FACEBOOK PROCUREMENT, LLC",entity,Polmer LLC,both belong to Meta,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"FACEBOOK PROCUREMENT, LLC",entity,Wurldwide LLC,both belong to Meta,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,VALLIES LLC,entity,Polmer LLC,shared address is Meta's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,VALLIES LLC,entity,Wurldwide LLC,shared address is Meta's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,Polmer LLC,entity,Wurldwide LLC,both belong to Meta,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"FACEBOOK CIRCULARITY, LLC",entity,Polmer LLC,both belong to Meta,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"FACEBOOK CIRCULARITY, LLC",entity,Wurldwide LLC,both belong to Meta,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,Wurldwide LLC,entity,Polmer LLC,both belong to Meta,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"DDI DALLAS 1, LLC",entity,"Digital Garland Campbell, L.P.",shared address is Digital Realty's own office,claude
+2026-11-10,confirm,parent,parent_of,company,Digital Realty,entity,"Digital Garland Campbell, L.P.",entity carries the company's name,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"DIGITAL REALTY TRUST, L.P.",entity,"DDI Lewisville, LLC",both belong to Digital Realty,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"DIGITAL MIDWAY, L.P.",entity,"DDI Lewisville, LLC",shared address is Digital Realty's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"DIGITAL - BRYAN STREET PARTNERSHIP, L.P.",entity,"DDI Lewisville, LLC",shared address is Digital Realty's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,DIGIAL-PR VENTURE LLC,entity,"Digital Garland Campbell, L.P.",shared address is Digital Realty's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,DIGIAL-PR VENTURE LLC,entity,"DDI Lewisville, LLC",shared address is Digital Realty's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"COLO PROPERTIES ATLANTA, LLC",entity,"Digital Garland Campbell, L.P.",shared address is Digital Realty's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"COLO PROPERTIES ATLANTA, LLC",entity,"DDI Lewisville, LLC",shared address is Digital Realty's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"Digital Garland Campbell, L.P.",entity,"DDI Lewisville, LLC",both belong to Digital Realty,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"DIGITAL TEXAS GP, LLC",entity,"DDI Lewisville, LLC",shared address is Digital Realty's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"DDI Lewisville, LLC",entity,"Digital Garland Campbell, L.P.",both belong to Digital Realty,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"DIGITAL LANCASTER, L.P.",entity,"DDI Lewisville, LLC",shared address is Digital Realty's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,JANE STREET GROUP LLC,entity,JS Data Center LLC,shared address is Jane Street's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"JANE STREET ENERGY MARKETING, LLC",entity,JS Data Center LLC,shared address is Jane Street's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,JANE STREET ENERGY OPERATIONS LLC,entity,JS Data Center LLC,shared address is Jane Street's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"JANE STREET ENERGY TRADING, LLC",entity,JS Data Center LLC,shared address is Jane Street's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CRUSOE ENERGY HOLDINGS INC,entity,Abilene DC 3 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CRUSOE ENERGY HOLDINGS INC,entity,"Abilene DC 4, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CRUSOE ENERGY HOLDINGS INC,entity,Abilene DC 5 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CRUSOE ENERGY HOLDINGS INC,entity,Abilene DC 6 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CRUSOE ENERGY HOLDINGS INC,entity,Abilene DC 7 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CRUSOE ENERGY HOLDINGS INC,entity,Abilene DC 8 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CRUSOE ENERGY HOLDINGS INC,entity,"Abilene DC 9, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CRUSOE ENERGY HOLDINGS INC,entity,"GN DC2, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"LONGHORN JV, LLC",entity,Abilene DC 3 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"LONGHORN JV, LLC",entity,"Abilene DC 4, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"LONGHORN JV, LLC",entity,Abilene DC 5 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"LONGHORN JV, LLC",entity,Abilene DC 6 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"LONGHORN JV, LLC",entity,Abilene DC 7 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"LONGHORN JV, LLC",entity,Abilene DC 8 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"LONGHORN JV, LLC",entity,"Abilene DC 9, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"LONGHORN JV, LLC",entity,"GN DC2, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,Abilene DC 8 LLC,entity,"GN DC2, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,Abilene DC 5 LLC,entity,"GN DC2, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,Abilene DC 7 LLC,entity,"GN DC2, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,Abilene DC 6 LLC,entity,"GN DC2, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"Abilene DC 4, LLC",entity,"GN DC2, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,Abilene DC 3 LLC,entity,"GN DC2, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"Abilene DC 9, LLC",entity,"GN DC2, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"GN DC2, LLC",entity,Abilene DC 3 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"GN DC2, LLC",entity,"Abilene DC 4, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"GN DC2, LLC",entity,Abilene DC 5 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"GN DC2, LLC",entity,Abilene DC 6 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"GN DC2, LLC",entity,Abilene DC 7 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"GN DC2, LLC",entity,Abilene DC 8 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"GN DC2, LLC",entity,"Abilene DC 9, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"CHILDRESS DC 4, LLC",entity,Abilene DC 3 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"CHILDRESS DC 4, LLC",entity,"Abilene DC 4, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"CHILDRESS DC 4, LLC",entity,Abilene DC 5 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"CHILDRESS DC 4, LLC",entity,Abilene DC 6 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"CHILDRESS DC 4, LLC",entity,Abilene DC 7 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"CHILDRESS DC 4, LLC",entity,Abilene DC 8 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"CHILDRESS DC 4, LLC",entity,"Abilene DC 9, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"CHILDRESS DC 4, LLC",entity,"GN DC2, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CORSICANA PWR LLC,entity,Abilene DC 3 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CORSICANA PWR LLC,entity,"Abilene DC 4, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CORSICANA PWR LLC,entity,Abilene DC 5 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CORSICANA PWR LLC,entity,Abilene DC 6 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CORSICANA PWR LLC,entity,Abilene DC 7 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CORSICANA PWR LLC,entity,Abilene DC 8 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CORSICANA PWR LLC,entity,"Abilene DC 9, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CORSICANA PWR LLC,entity,"GN DC2, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CORSICANA PWR MEMBER LLC,entity,Abilene DC 3 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CORSICANA PWR MEMBER LLC,entity,"Abilene DC 4, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CORSICANA PWR MEMBER LLC,entity,Abilene DC 5 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CORSICANA PWR MEMBER LLC,entity,Abilene DC 6 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CORSICANA PWR MEMBER LLC,entity,Abilene DC 7 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CORSICANA PWR MEMBER LLC,entity,Abilene DC 8 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CORSICANA PWR MEMBER LLC,entity,"Abilene DC 9, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CORSICANA PWR MEMBER LLC,entity,"GN DC2, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,STONEWALL DC OWNER 1 LLC,entity,Abilene DC 3 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,STONEWALL DC OWNER 1 LLC,entity,"Abilene DC 4, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,STONEWALL DC OWNER 1 LLC,entity,Abilene DC 5 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,STONEWALL DC OWNER 1 LLC,entity,Abilene DC 6 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,STONEWALL DC OWNER 1 LLC,entity,Abilene DC 7 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,STONEWALL DC OWNER 1 LLC,entity,Abilene DC 8 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,STONEWALL DC OWNER 1 LLC,entity,"Abilene DC 9, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,STONEWALL DC OWNER 1 LLC,entity,"GN DC2, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CLAUDE DC OWNER 2 LLC,entity,Abilene DC 3 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CLAUDE DC OWNER 2 LLC,entity,"Abilene DC 4, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CLAUDE DC OWNER 2 LLC,entity,Abilene DC 5 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CLAUDE DC OWNER 2 LLC,entity,Abilene DC 6 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CLAUDE DC OWNER 2 LLC,entity,Abilene DC 7 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CLAUDE DC OWNER 2 LLC,entity,Abilene DC 8 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CLAUDE DC OWNER 2 LLC,entity,"Abilene DC 9, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CLAUDE DC OWNER 2 LLC,entity,"GN DC2, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CLAUDE DC OWNER 1 LLC,entity,Abilene DC 3 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CLAUDE DC OWNER 1 LLC,entity,"Abilene DC 4, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CLAUDE DC OWNER 1 LLC,entity,Abilene DC 5 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CLAUDE DC OWNER 1 LLC,entity,Abilene DC 6 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CLAUDE DC OWNER 1 LLC,entity,Abilene DC 7 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CLAUDE DC OWNER 1 LLC,entity,Abilene DC 8 LLC,shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CLAUDE DC OWNER 1 LLC,entity,"Abilene DC 9, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CLAUDE DC OWNER 1 LLC,entity,"GN DC2, LLC",shared address is Crusoe's own office,claude
+2026-11-10,confirm,parent,parent_of,company,Vantage Data Centers,entity,"Vantage Data Centers Tx11, LLC",entity carries the company's name,claude
+2026-11-10,confirm,parent,parent_of,company,Vantage Data Centers,entity,"Vantage Data Centers Tx21, LLC",entity carries the company's name,claude
+2026-11-10,confirm,parent,parent_of,company,Vantage Data Centers,entity,"Vantage Data Centers TX12, LLC",entity carries the company's name,claude
+2026-11-10,confirm,parent,parent_of,company,Vantage Data Centers,entity,"Vantage Data Centers TX22, LLC",entity carries the company's name,claude
+2026-11-10,confirm,parent,parent_of,company,Vantage Data Centers,entity,Vantage Data Centers Management Company LLC,entity carries the company's name,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,RETAINED VDC MANAGEMENT LP,entity,"Vantage Data Centers Tx11, LLC",shared address is Vantage Data Centers's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,RETAINED VDC MANAGEMENT LP,entity,"Vantage Data Centers Tx21, LLC",shared address is Vantage Data Centers's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,RETAINED VDC MANAGEMENT LP,entity,Vantage Data Centers Management Company LLC,shared address is Vantage Data Centers's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,RETAINED VDC MANAGEMENT LP,entity,"Vantage Data Centers TX12, LLC",shared address is Vantage Data Centers's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,RETAINED VDC MANAGEMENT LP,entity,"Vantage Data Centers TX22, LLC",shared address is Vantage Data Centers's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"KICKING DIRT REALTY INVESTMENTS, LLC",entity,"Vantage Data Centers Tx11, LLC",shared address is Vantage Data Centers's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"KICKING DIRT REALTY INVESTMENTS, LLC",entity,"Vantage Data Centers Tx21, LLC",shared address is Vantage Data Centers's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"KICKING DIRT REALTY INVESTMENTS, LLC",entity,Vantage Data Centers Management Company LLC,shared address is Vantage Data Centers's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"KICKING DIRT REALTY INVESTMENTS, LLC",entity,"Vantage Data Centers TX12, LLC",shared address is Vantage Data Centers's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"KICKING DIRT REALTY INVESTMENTS, LLC",entity,"Vantage Data Centers TX22, LLC",shared address is Vantage Data Centers's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,Dory Creek LLC,entity,Bitdeer Inc.,shared address is Bitdeer's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,Bitdeer Inc.,entity,Dory Creek LLC,shared address is Bitdeer's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,BITDEER SALES (USA) INC.,entity,Dory Creek LLC,shared address is Bitdeer's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,BROCK CREEK LLC,entity,Bitdeer Inc.,shared address is Bitdeer's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,BROCK CREEK LLC,entity,Dory Creek LLC,names share a word at a small shared address,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"CARPENTER CREEK, LLC",entity,Bitdeer Inc.,shared address is Bitdeer's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"CARPENTER CREEK, LLC",entity,Dory Creek LLC,names share a word at a small shared address,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,BITDEER INDUSTRIAL HOLDING INC.,entity,Dory Creek LLC,shared address is Bitdeer's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"CCTX5, LLC",entity,Bitdeer Inc.,shared address is Bitdeer's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"CCTX5, LLC",entity,Dory Creek LLC,shared address is Bitdeer's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,SANDY CREEK LLC,entity,Bitdeer Inc.,shared address is Bitdeer's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,SANDY CREEK LLC,entity,Dory Creek LLC,names share a word at a small shared address,claude
+2026-11-10,confirm,parent,parent_of,company,CoreWeave,entity,Coreweave Compute Acquisition Co. II. LLC,entity carries the company's name,claude
+2026-11-10,confirm,parent,parent_of,company,CoreWeave,entity,"Coreweave Compute Acquisition Co. III, LLC",entity carries the company's name,claude
+2026-11-10,confirm,parent,parent_of,company,CoreWeave,entity,Coreweave Compute Acquisition Co V LLC,entity carries the company's name,claude
+2026-11-10,confirm,parent,parent_of,company,CoreWeave,entity,"Coreweave, Inc.",entity carries the company's name,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,VULTR HOLDINGS CORPORATION,entity,"The Constant Company, LLC",shared address is Vultr (The Constant Company)'s own office,claude
+2026-11-10,confirm,parent,parent_of,company,Nexus Data Centers,entity,Nexus Data Center Hubbard CFCO LLC,entity carries the company's name,claude
+2026-11-10,confirm,parent,parent_of,company,Nexus Data Centers,entity,Nexus Operations Hubbard LLC,entity carries the company's name,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,APPLIED DIGITAL CORPORATION,entity,Chronoscale Corporation,shared address is Applied Digital's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"APPLIED TALENT RESOURCES, LLC",entity,Chronoscale Corporation,shared address is Applied Digital's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"APLD HOSTING, LLC",entity,Chronoscale Corporation,shared address is Applied Digital's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"1.21 GIGAWATTS, LLC",entity,Chronoscale Corporation,shared address is Applied Digital's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,APLD ELN-01 LLC,entity,Chronoscale Corporation,shared address is Applied Digital's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,APLD - RATTLESNAKE DEN I LLC,entity,Chronoscale Corporation,shared address is Applied Digital's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,APLD GPU-01 LLC,entity,Chronoscale Corporation,shared address is Applied Digital's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,APLD HPC-01 LLC,entity,Chronoscale Corporation,shared address is Applied Digital's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,SAI-FOUNDRY COMPUTING LLC,entity,Chronoscale Corporation,shared address is Applied Digital's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,SAI COMPUTING HOLDINGS LLC,entity,Chronoscale Corporation,shared address is Applied Digital's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,APLD ELN-02 LLC,entity,Chronoscale Corporation,shared address is Applied Digital's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,APLD SLC-01 LLC,entity,Chronoscale Corporation,shared address is Applied Digital's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,JAMES RIVER HOUSING LLC,entity,Chronoscale Corporation,shared address is Applied Digital's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,APLD ELN-02 LANDCO LLC,entity,Chronoscale Corporation,shared address is Applied Digital's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,APLD HPC TRS LLC,entity,Chronoscale Corporation,shared address is Applied Digital's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,Whinstone US Inc.,entity,"Riot Corsicana, LLC",shared address is Riot Platforms's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"1094 CR-319, LLC",entity,Whinstone US Inc.,shared address is Riot Platforms's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"1094 CR-319, LLC",entity,"Riot Corsicana, LLC",shared address is Riot Platforms's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"Riot Corsicana, LLC",entity,Whinstone US Inc.,shared address is Riot Platforms's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"RPI SECURITY - CORSICANA, LLC",entity,Whinstone US Inc.,shared address is Riot Platforms's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"RPI SECURITY - CORSICANA, LLC",entity,"Riot Corsicana, LLC",names share a word at a small shared address,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"1515 ROUNDTABLE DR PROPERTY, LLC",entity,Lockhart Property LLC,shared address is Prime Data Centers's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"11753 LOWER BUCKEYE PROPERTY, LLC",entity,Lockhart Property LLC,shared address is Prime Data Centers's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"Prime Data Centers, LLC",entity,Lockhart Property LLC,shared address is Prime Data Centers's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"VERISPACE, LLC",entity,"DB Data Center Red Oak, LLC",shared address is DataBank's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"ARSALON TECHNOLOGIES, LLC",entity,"DB Data Center Red Oak, LLC",shared address is DataBank's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"PORTER HALL, LLC",entity,"DB Data Center Red Oak, LLC",shared address is DataBank's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"C7 DATA CENTERS, LLC",entity,"DB Data Center Red Oak, LLC",shared address is DataBank's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,DATABRIDGE PARENT INC,entity,"DB Data Center Red Oak, LLC",shared address is DataBank's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,DATABRIDGE UPPER PARENT INC,entity,"DB Data Center Red Oak, LLC",shared address is DataBank's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,GPB PARENT INC,entity,"DB Data Center Red Oak, LLC",shared address is DataBank's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"DATABRIDGE INTERMEDIATE HOLDINGS, LP",entity,"DB Data Center Red Oak, LLC",shared address is DataBank's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"DATABANK TRS, LLC",entity,"DB Data Center Red Oak, LLC",both belong to DataBank,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,DC HOUSTON INTERMEDIATE HOLDCO LLC,entity,"DB Data Center Red Oak, LLC",shared address is DataBank's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"DATABRIDGE UPPER PARENT HOLDINGS IV, LP",entity,"DB Data Center Red Oak, LLC",shared address is DataBank's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"EDGE HOSTING, LLC",entity,"DB Data Center Red Oak, LLC",shared address is DataBank's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"DATABRIDGE HOLDINGS, LLC",entity,"DB Data Center Red Oak, LLC",shared address is DataBank's own office,claude
+2026-11-10,confirm,parent,parent_of,company,Poolside,entity,Poolside LF Phase 2 DC Ops LLC,entity carries the company's name,claude
+2026-11-10,confirm,parent,parent_of,company,Poolside,entity,"Poolside LF Phase 1 DC OPS, LLC",entity carries the company's name,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,GREEN PROJECTCO INC.,entity,IE US Hardware 1 Inc.,shared address is IREN's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,GREEN PROJECTCO INC.,entity,IE US Development Holdings 3 Inc.,shared address is IREN's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,GREEN PROJECTCO INC.,entity,IE US Hardware 4 LLC,shared address is IREN's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,GREEN PROJECTCO INC.,entity,IE US HARDWARE 3 LLC,shared address is IREN's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,GREEN PROJECTCO INC.,entity,IE US DEVELOPMENT HOLDINGS 7 INC.,shared address is IREN's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,WEST TEXAS DIGITAL LLC,entity,WTDM OZB LLC,shared address is West Texas Digital's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"WEST TEXAS DIGITAL LAND, LLC",entity,WTDM OZB LLC,shared address is West Texas Digital's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,CORPORATE OFFICE PROPERTIES LP,entity,COPT San Antonio LP,shared address is COPT Defense Properties's own office,claude
+2026-11-10,confirm,parent,parent_of,company,COPT Defense Properties,entity,COPT San Antonio LP,entity carries the company's name,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"C TEXAS SG, LLC",entity,COPT San Antonio LP,shared address is COPT Defense Properties's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"CDP NORTHWEST, LLC",entity,COPT San Antonio LP,shared address is COPT Defense Properties's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,HUT 8 CORP,entity,American Bitcoin Operating LLC,shared address is Hut 8's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,USMIO VEGA LLC,entity,American Bitcoin Operating LLC,shared address is Hut 8's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,BEACON POINT DC 2 LLC,entity,American Bitcoin Operating LLC,shared address is Hut 8's own office,claude
+2026-11-10,confirm,parent,parent_of,company,Riot Platforms,entity,"Riot Platforms, Inc.",entity carries the company's name,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"Stream Data Centers, L.P.",entity,"SDC Technology Services, LLC",both belong to Stream Data Centers,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"STREAM DATA CENTERS GP, L.L.C.",entity,"SDC Technology Services, LLC",both belong to Stream Data Centers,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"DATA FOUNDRY, LLC",entity,"Switch, LTD",shared address is Switch's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"TX AUS 2 & 3, LLC",entity,"Switch, LTD",shared address is Switch's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"TX HOU 1, LLC",entity,"Switch, LTD",shared address is Switch's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"TX AUS NAP 1, LLC",entity,"Switch, LTD",shared address is Switch's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"TX AUS 2, LLC",entity,"Switch, LTD",shared address is Switch's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"TX AUS 6, LLC",entity,"Switch, LTD",shared address is Switch's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"TX AUS 4, LLC",entity,"Switch, LTD",shared address is Switch's own office,claude
+2026-11-10,confirm,affiliate,affiliate_of,entity,"TX AUS 5, LLC",entity,"Switch, LTD",shared address is Switch's own office,claude
+2026-11-10,confirm,parent,parent_of,company,Lancium,entity,Lancium LLC,entity carries the company's name,claude

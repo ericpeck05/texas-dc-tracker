@@ -9,8 +9,10 @@ Four kinds of low link reach the queue:
 - parent: a company that may be behind an entity (shared mailing address).
 - affiliate: two entities that may be sister LLCs (shared mailing address).
 
-A confirm adds a Link with method=manual and high confidence. A reject hides the low link
-from every view (see entities.not_rejected). Links are never deleted.
+A person's confirm adds a Link with method=manual and high confidence. Claude can also work
+the queue (decided_by=claude): its confirm adds a Link with method=claude_review at medium
+confidence, so a check by Claude never reads as a person's. A reject hides the low link from
+every view (see entities.not_rejected). Links are never deleted.
 
 Every decision is also appended to seeds/review_decisions.csv, keyed by stable references
 (an RN or site name, a filing's source and number, a legal name) rather than database ids,
@@ -50,6 +52,7 @@ from tracker.views.ticker import ROLE_LABEL
 DECISIONS_PATH = Path(__file__).resolve().parents[2] / "seeds" / "review_decisions.csv"
 KINDS = ("same_site", "filing", "parent", "affiliate")
 DECISIONS = ("confirm", "reject")
+DECIDERS = ("person", "claude")
 PROGRESS = [
     SiteStatus.RUMORED,
     SiteStatus.FILED,
@@ -100,13 +103,18 @@ def resolve_ref(session: Session, kind: RecordType, ref: str) -> int | None:
     if kind == RecordType.SITE:
         how, _, value = ref.partition(":")
         merged = set(session.scalars(select(ReviewDecision.merged_site_id)))
-        for site in session.scalars(select(Site).order_by(Site.id)):
-            if site.id in merged:
-                continue
-            if how == "rn" and value in (site.tceq_rns or []):
-                return site.id
-            if how == "name" and (site.name == value or value in (site.aliases or [])):
-                return site.id
+        sites = [s for s in session.scalars(select(Site).order_by(Site.id)) if s.id not in merged]
+        if how == "rn":
+            return next((s.id for s in sites if value in (s.tceq_rns or [])), None)
+        # A name ref is written only for a site with no RN, so two sites that share a name
+        # ("Temple Data Center" in the registry and on an air permit) resolve to that one.
+        for match in (
+            lambda s: s.name == value and not s.tceq_rns,
+            lambda s: s.name == value,
+            lambda s: value in (s.aliases or []),
+        ):
+            if found := next((s.id for s in sites if match(s)), None):
+                return found
         return None
     if kind == RecordType.SIGNAL:
         source = ref.split("|", 1)[0]
@@ -305,21 +313,32 @@ def _attach_filing(session: Session, sig: Signal, site: Site) -> None:
         )
 
 
-def decide(session: Session, link_id: int, decision: str, note: str | None = None) -> dict:
+def decide(
+    session: Session,
+    link_id: int,
+    decision: str,
+    note: str | None = None,
+    decided_by: str = "person",
+) -> dict:
     """Record a decision on one open low link. Returns what changed."""
     if decision not in DECISIONS:
         raise ReviewError(f"decision must be one of {DECISIONS}")
+    if decided_by not in DECIDERS:
+        raise ReviewError(f"decided_by must be one of {DECIDERS}")
+    by_claude = decided_by == "claude"
     link = session.get(Link, link_id)
     if link is None or link.confidence != Confidence.LOW or link_kind(link) is None:
         raise ReviewError(f"link {link_id} is not a low-confidence link in the queue")
     if session.scalar(select(ReviewDecision.id).where(ReviewDecision.link_id == link_id)):
         raise ReviewError(f"link {link_id} was already decided")
     note = (note or "").strip() or None
-    row = ReviewDecision(link_id=link.id, decision=decision, note=note)
+    row = ReviewDecision(link_id=link.id, decision=decision, note=note, decided_by=decided_by)
     out: dict = {"link_id": link.id, "decision": decision}
     if decision == "confirm":
         kind = link_kind(link)
-        reason = "confirmed in review" + (f": {note}" if note else "")
+        reason = ("confirmed by Claude" if by_claude else "confirmed in review") + (
+            f": {note}" if note else ""
+        )
         if kind == "same_site":
             a, b = session.get(Site, link.from_id), session.get(Site, link.to_id)
             count = {
@@ -345,7 +364,10 @@ def decide(session: Session, link_id: int, decision: str, note: str | None = Non
             ):
                 session.add(
                     ReviewDecision(
-                        link_id=other.id, decision="reject", note=f"filing confirmed at {site.name}"
+                        link_id=other.id,
+                        decision="reject",
+                        note=f"filing confirmed at {site.name}",
+                        decided_by=decided_by,
                     )
                 )
         manual = Link(
@@ -354,8 +376,8 @@ def decide(session: Session, link_id: int, decision: str, note: str | None = Non
             to_type=link.to_type,
             to_id=link.to_id if kind != "same_site" else row.kept_site_id,
             link_type=link.link_type,
-            method=LinkMethod.MANUAL,
-            confidence=Confidence.HIGH,
+            method=LinkMethod.CLAUDE_REVIEW if by_claude else LinkMethod.MANUAL,
+            confidence=Confidence.MEDIUM if by_claude else Confidence.HIGH,
             evidence_url=link.evidence_url,
             note=reason,
         )
@@ -405,12 +427,16 @@ class DecisionRow:
     to_type: str
     to_ref: str
     note: str
+    decided_by: str = "person"
 
 
 COLUMNS = [f.name for f in fields(DecisionRow)]
+_DEFAULTS = {"decided_by": "person"}  # rows written before the column existed
 
 
-def decision_row(session: Session, link: Link, decision: str, note: str | None) -> DecisionRow:
+def decision_row(
+    session: Session, link: Link, decision: str, note: str | None, decided_by: str = "person"
+) -> DecisionRow:
     """Built before the decision is applied, while the link's ends are as the queue showed."""
     return DecisionRow(
         decided_at=datetime.now(UTC).date().isoformat(),
@@ -422,6 +448,7 @@ def decision_row(session: Session, link: Link, decision: str, note: str | None) 
         to_type=str(link.to_type),
         to_ref=record_ref(session, link.to_type, link.to_id),
         note=(note or "").strip(),
+        decided_by=decided_by,
     )
 
 
@@ -440,20 +467,25 @@ def read_decisions(path: Path = DECISIONS_PATH) -> list[DecisionRow]:
         return []
     with path.open(newline="") as f:
         return [
-            DecisionRow(**{c: (r.get(c) or "").strip() for c in COLUMNS})
+            DecisionRow(**{c: (r.get(c) or "").strip() or _DEFAULTS.get(c, "") for c in COLUMNS})
             for r in csv.DictReader(f)
             if (r.get("decision") or "").strip()
         ]
 
 
 def review_and_save(
-    session: Session, link_id: int, decision: str, note: str | None, path: Path = DECISIONS_PATH
+    session: Session,
+    link_id: int,
+    decision: str,
+    note: str | None,
+    path: Path = DECISIONS_PATH,
+    decided_by: str = "person",
 ) -> dict:
     link = session.get(Link, link_id)
     if link is None:
         raise ReviewError(f"no link {link_id}")
-    row = decision_row(session, link, decision, note)
-    out = decide(session, link_id, decision, note)
+    row = decision_row(session, link, decision, note, decided_by)
+    out = decide(session, link_id, decision, note, decided_by)
     append_decision(row, path)
     return out
 
@@ -497,5 +529,5 @@ def apply_decisions(session: Session, rows: list[DecisionRow]) -> list[str]:
                 continue  # usually settled already by confirming another candidate
             missing.append(f"{row.decision} {row.from_ref} -> {row.to_ref}")
             continue
-        decide(session, link.id, row.decision, row.note or None)
+        decide(session, link.id, row.decision, row.note or None, row.decided_by or "person")
     return missing
