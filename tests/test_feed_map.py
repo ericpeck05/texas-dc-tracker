@@ -99,3 +99,40 @@ def test_feed_and_locations(tmp_path):
     assert len(body["items"]) == 3 and "Not investment advice" in body["disclaimer"]
     sites = {r["name"]: r for r in client.get("/api/sites").json()["sites"]}
     assert sites["Rural Campus"]["place"] == "Ward County"
+
+
+def test_supplier_scoreboard_matches_ticker_pages(tmp_path):
+    from tracker.views.suppliers import scoreboard
+    from tracker.views.ticker import ticker_view
+
+    engine = make_engine(f"sqlite:///{tmp_path / 't.db'}")
+    init_db(engine)
+    with session_scope(engine) as session:
+        abilene, _, _ = _seed(session)
+        air = abilene.signals[0]
+        session.add(
+            Eq(
+                signal=air,
+                site=abilene,
+                category=EquipmentCategory.DIESEL_GENERATOR,
+                count=6,
+                unit_size=3.0,
+                unit="MW",
+                manufacturer="Caterpillar",
+                model="3516C",
+            )
+        )
+        session.flush()
+        board = scoreboard(session)
+        cat = ticker_view(session, "CAT")["supply"]["totals"]
+
+    by = {m["maker"]: m for m in board["makers"]}
+    assert by["Caterpillar"]["generators"] == 6 == cat["generators"]
+    assert by["Caterpillar"]["mw"] == 18.0 == cat["mw"]
+    assert by["Caterpillar"]["quarters"] == {
+        "2026-Q4": {"generators": 6, "turbines": 0, "mw": 18.0}
+    }
+    assert by["Caterpillar"]["rows"][0]["source"]["page"] is None
+    assert by["Make not stated"]["generators"] == 4 and not by["Make not stated"]["known"]
+    assert board["makers"][-1]["maker"] == "Make not stated"
+    assert board["known_totals"]["generators"] == 6 and board["totals"]["generators"] == 10

@@ -509,3 +509,32 @@ kbd {
 .grid tr.current td:first-child {
   box-shadow: inset 2px 0 0 var(--text);
 }
+
+/* Supplier scoreboard */
+.scoreboard tr.unknown td {
+  border-top: 1px solid var(--faint);
+}
+.scoreboard tfoot td {
+  border-top: 1px solid var(--line);
+  padding-top: 6px;
+}
+.share {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 120px;
+}
+.share .bar {
+  height: 8px;
+  background: var(--supply);
+  max-width: 90px;
+}
+.scoreboard tr.detail td {
+  background: var(--panel);
+}
+.maker-detail {
+  padding: 4px 0 8px;
+}
+.maker-detail .grid {
+  margin-top: 6px;
+}

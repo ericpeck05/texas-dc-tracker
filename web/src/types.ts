@@ -253,3 +253,42 @@ export interface FeedResponse {
   latest_filing: string | null;
   items: FeedItem[];
 }
+
+export interface MakerUnitRow {
+  maker: string;
+  model: string | null;
+  kind: "generators" | "turbines";
+  count: number;
+  unit_size: number | null;
+  unit: string | null;
+  mw: number;
+  unsized: number;
+  quarter: string | null;
+  first_filed: string | null;
+  site: { id: number; name: string; status: string };
+  source: DocRef & { page: number | null; snippet: string | null };
+}
+
+export interface MakerRow {
+  maker: string;
+  ticker: string | null;
+  exchange: string | null;
+  parent: string | null;
+  known: boolean;
+  generators: number;
+  turbines: number;
+  mw: number;
+  unsized: number;
+  sites: number;
+  quarters: Record<string, { generators: number; turbines: number; mw: number }>;
+  models: { model: string; count: number; mw: number; kind: string }[];
+  rows: MakerUnitRow[];
+}
+
+export interface Scoreboard {
+  disclaimer: string;
+  makers: MakerRow[];
+  quarters: string[];
+  totals: { generators: number; turbines: number; mw: number; unsized: number };
+  known_totals: { generators: number; turbines: number; mw: number };
+}

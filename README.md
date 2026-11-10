@@ -209,6 +209,16 @@ A site page (`/api/sites/{id}`) shows:
 
 Entity officers and registered agents are never returned.
 
+## Supplier scoreboard
+
+`#/suppliers` (`/api/suppliers`) ranks manufacturers by permitted generators and turbines,
+by MW or unit count, with a column per quarter. Counts are the same netted units as the
+site and ticker pages. A unit's quarter is when its permit was first filed (the earliest
+dated document for that permit at the site), the closest public sign of when it was
+ordered. Shares are of units whose make the permit names; most permits name none, so the
+"Make not stated" row is shown and shares read as a sample. Click a manufacturer for its
+models, sites, and the permit page behind every count.
+
 ## Review queue
 
 The importers leave a low-confidence link wherever a match is plausible but not settled.
@@ -288,6 +298,7 @@ src/tracker/
   views/ticker.py        ticker page data: demand-side sites, supplied equipment
   views/sites.py         site list and site page: owner chain, timeline, equipment
   views/feed.py          feed: filings newest first with site, companies, equipment
+  views/suppliers.py     supplier scoreboard: units by manufacturer and quarter
   locate.py              approximate site positions (city point or county center)
   review.py              review queue: confirm/reject low links, merges, decision replay
   jobs.py                collection jobs shared by the CLI and the refresh
