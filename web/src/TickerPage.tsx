@@ -1,6 +1,14 @@
 import { Fragment, useEffect, useState } from "react";
-import { Conf, Sourced, isNew, mw, num, signalLabel } from "./format";
-import type { DemandSite, LinkStep, TickerView } from "./types";
+import {
+  Conf,
+  Sourced,
+  isNew,
+  mw,
+  num,
+  signalLabel,
+  statusLabel,
+} from "./format";
+import type { DemandSite, LinkStep, SecNamedSite, TickerView } from "./types";
 
 export function TickerPage({ symbol }: { symbol: string }) {
   const [view, setView] = useState<TickerView | null>(null);
@@ -103,6 +111,8 @@ export function TickerPage({ symbol }: { symbol: string }) {
         </section>
       )}
 
+      {view.sec_mentions.length > 0 && <SecTable sites={view.sec_mentions} />}
+
       {view.recent_signals.length > 0 && (
         <section>
           <h2>Newest filings</h2>
@@ -132,6 +142,57 @@ export function TickerPage({ symbol }: { symbol: string }) {
 
       <footer className="disclaimer">{view.disclaimer}</footer>
     </main>
+  );
+}
+
+function SecTable({ sites }: { sites: SecNamedSite[] }) {
+  return (
+    <section>
+      <h2>
+        Named in its own SEC filings{" "}
+        <span className="dim">
+          · shows involvement, not a role; not counted above
+        </span>
+      </h2>
+      <table className="grid">
+        <thead>
+          <tr>
+            <th>Site</th>
+            <th>County</th>
+            <th>Filings</th>
+            <th>Newest filing says</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sites.map((site) => {
+            const newest = site.filings[0];
+            return (
+              <tr key={site.id}>
+                <td>
+                  <a href={`#/s/${site.id}`}>{site.name}</a>{" "}
+                  <span className="dim small">{statusLabel(site.status)}</span>
+                </td>
+                <td>{site.county ?? "—"}</td>
+                <td className="nowrap">
+                  {site.filings.map((f, i) => (
+                    <div key={i} className="small">
+                      <a
+                        href={f.url ?? undefined}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {f.form} {f.date}
+                      </a>
+                    </div>
+                  ))}
+                </td>
+                <td className="small dim">{newest?.snippet}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </section>
   );
 }
 

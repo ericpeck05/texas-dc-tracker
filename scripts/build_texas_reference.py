@@ -114,6 +114,7 @@ def main() -> None:
     for line in lines[1:]:
         rec = dict(zip(header, (v.strip() for v in line.split("\t")), strict=False))
         name = re.sub(r"\s+(city|town|village|CDP)$", "", rec["NAME"])
+        name = re.sub(r"^(?:Town|City|Village) of ", "", name)  # "Town of Pecos city"
         places.append((name, float(rec["INTPTLAT"]), float(rec["INTPTLONG"])))
     with (ref / "tx_places.csv").open("w", newline="") as f:
         w = csv.writer(f)

@@ -29,7 +29,8 @@ export function TickerIndex() {
         Public companies tied to Texas data center sites (owner, tenant,
         operator, permit holder) or supplying their generators and turbines.
         Medium and high confidence only; low confidence ties are counted as
-        leads.
+        leads. "In SEC filings" counts sites the company's own filings name,
+        apart from any role.
       </p>
       <table className="grid">
         <thead>
@@ -39,6 +40,7 @@ export function TickerIndex() {
             <th className="r">Sites</th>
             <th className="r">High conf.</th>
             <th className="r">Leads</th>
+            <th className="r">In SEC filings</th>
             <th className="r">Site MW</th>
             <th className="r">Units supplied</th>
             <th className="r">Supplied MW</th>
@@ -62,6 +64,9 @@ export function TickerIndex() {
                 {r.high_confidence_sites ? num(r.high_confidence_sites) : "–"}
               </td>
               <td className="r mono dim">{r.leads ? num(r.leads) : "–"}</td>
+              <td className="r mono">
+                {r.sec_named_sites ? num(r.sec_named_sites) : "–"}
+              </td>
               <td className="r mono">{r.site_mw ? mw(r.site_mw) : "–"}</td>
               <td className="r mono">
                 {r.supplied_units ? num(r.supplied_units) : "–"}

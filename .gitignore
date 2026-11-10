@@ -18,3 +18,4 @@ data/*.csv
 web/node_modules/
 web/dist/
 data/refresh/
+data/serve.log

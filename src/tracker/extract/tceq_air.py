@@ -24,7 +24,7 @@ from tracker.db.models import EquipmentCategory
 from tracker.reference.suppliers import SUPPLIERS, find_supplier
 
 EXTRACTOR_NAME = "tceq_air_rules"
-EXTRACTOR_VERSION = "0.5.1"
+EXTRACTOR_VERSION = "0.5.2"
 
 LOOKBACK_CHARS = 160
 LOOKAHEAD_CHARS = 110
@@ -96,7 +96,7 @@ _WRITTEN_NUMBER_END_RE = re.compile(rf"\b{_WORD_NUMBER}\s*$", re.IGNORECASE)
 # A count never reaches across a sentence end, a semicolon, a colon, or a Title V
 # "Attribute = value" separator. Without this, "75% of Peak = The combustion turbine" reads
 # as 75 turbines, and "255 FILLMORE ST ... Re: Electric Generating Units" as 255 generators.
-CLAUSE_BREAK_RE = re.compile(r"[.!?](?=\s+[A-Z(])|[;=:]")
+CLAUSE_BREAK_RE = re.compile(r"[.!?](?=\s+[A-Z(])|[;=]|(?<!\w):|:(?!\w)")
 # A number right after a model family or "Model" is part of the model name: "Titan 350".
 MODEL_PREFIX_RE = re.compile(
     r"\b(?:Titan|Taurus|Mars|Centaur|Mercury|Model|Series|LM|QSK|Type)\s*$", re.IGNORECASE
@@ -730,6 +730,40 @@ def _merge_restatements(mentions: list[EquipmentMention]) -> tuple[list[Equipmen
     return out, merged
 
 
+def _kind(category: EquipmentCategory) -> EquipmentCategory | str:
+    return "generator" if category in _GENERATOR_FAMILY else category
+
+
+def _split_totals(mentions: list[EquipmentMention]) -> list[EquipmentMention]:
+    """A total followed by its parts ("44 engines. These include: 25 Bergen B36:45L9AG ...
+    19 Bergen B36:45V20 ..."): the parts carry the sizes and models, so they are counted
+    and the total becomes a subset.
+    Parts must follow the total directly, be the same kind, and add up exactly."""
+    out = list(mentions)
+    for i, total in enumerate(out):
+        if total.method != "prose" or total.role == "subset" or total.count < 2:
+            continue
+        parts, running = [], 0
+        for j in range(i + 1, len(out)):
+            m = out[j]
+            if m.method != "prose" or _kind(m.category) != _kind(total.category):
+                break
+            if m.role == "subset":  # "5 operating, 2 backup" already sits inside the total
+                parts = []
+                break
+            parts.append(j)
+            running += m.count
+            if running >= total.count:
+                break
+        if len(parts) < 2 or running != total.count:
+            continue
+        for j in parts:
+            if out[j].role == "unknown":
+                out[j] = replace(out[j], role=total.role)
+        out[i] = replace(total, role="subset")
+    return out
+
+
 def _maert_category(epn: str, src: str) -> EquipmentCategory | None:
     text = f"{epn} {src}".lower()
     if "fire" in text and "pump" in text:
@@ -1048,6 +1082,7 @@ def extract_air_permit(text: str) -> AirPermitExtraction:
             page = page[: heading.start()]
         found += _scan_page(" ".join(page.split()), page_no)
     result.equipment, result.duplicate_mentions = _merge_restatements(found)
+    result.equipment = _split_totals(result.equipment)
 
     # A MAERT lists every unit, so for any category it covers it replaces this document's
     # prose counts. Otherwise "the 10 natural gas turbines" in the cover letter and the

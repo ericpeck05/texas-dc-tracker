@@ -95,3 +95,14 @@ def test_import_matches_one_site_and_reviews_shared_names(tmp_path):
         assert link.confidence == Confidence.MEDIUM
         again = import_sec(session, [_hit("Longhorn Data Center")], doc)
         assert again.new_signals == 0
+
+        # The filer's ticker page lists the site it names, apart from any role, and not the
+        # low-confidence shared-name candidates.
+        from tracker.views.ticker import ticker_index, ticker_view
+
+        view = ticker_view(session, "exm")
+        assert view["names"] == ["Example Corp"]
+        assert [r["name"] for r in view["sec_mentions"]] == ["Longhorn Data Center"]
+        assert view["sec_mentions"][0]["filings"][0]["form"] == "8-K"
+        assert view["demand"]["totals"]["sites"] == 0
+        assert [(r["symbol"], r["sec_named_sites"]) for r in ticker_index(session)] == [("EXM", 1)]

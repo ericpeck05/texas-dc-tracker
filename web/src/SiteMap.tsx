@@ -63,6 +63,7 @@ export function SiteMap(props: {
   const byCity = dots.filter(
     (d) => d.row.located === "city" || d.row.located === "exact",
   ).length;
+  const byName = dots.filter((d) => d.row.located === "name").length;
   const active = tip ?? dots.find((d) => d.row.id === hovered) ?? null;
 
   return (
@@ -86,7 +87,7 @@ export function SiteMap(props: {
               cx={d.x}
               cy={d.y}
               r={d.r}
-              className={`dot${d.row.located === "county" ? " approx" : ""}${hovered === d.row.id ? " hot" : ""}`}
+              className={`dot${d.row.located === "county" || d.row.located === "name" ? " approx" : ""}${hovered === d.row.id ? " hot" : ""}`}
               style={{
                 ["--c" as string]: STATUS_COLOR[d.row.status] ?? "#8a8a8a",
               }}
@@ -115,6 +116,7 @@ export function SiteMap(props: {
             </text>
             <text y={18} className="dim">
               {statusLabel(active.row.status)} · {active.row.place}
+              {active.row.located === "name" ? " (from site name)" : ""}
               {active.row.mw > 0
                 ? ` · ${mw(active.row.mw, active.row.unsized)} MW`
                 : ""}
@@ -142,13 +144,14 @@ export function SiteMap(props: {
                 style={{ ["--c" as string]: "#8a8a8a" }}
               />
             </svg>{" "}
-            county only
+            county or site name only
           </span>
         </div>
         <div className="dim small">
           Size is permitted MW (generators and turbines). {num(byCity)} sites
-          placed at their city, {num(dots.length - byCity)} at their county's
-          center (ringed): positions are approximate.
+          placed at their city, {num(dots.length - byCity - byName)} at their
+          county's center, and {num(byName)} by a place in the site's own name
+          (both ringed): positions are approximate.
           {unplaced > 0 &&
             ` ${num(unplaced)} sites name no place in any filing and are in the table only.`}
         </div>

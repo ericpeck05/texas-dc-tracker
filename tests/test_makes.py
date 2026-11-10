@@ -138,3 +138,19 @@ def test_small_groups_are_not_matched_by_mention_count():
     )
     (eq,) = extract_air_permit(text).equipment
     assert eq.manufacturer is None
+
+
+def test_total_followed_by_sized_parts_counts_the_parts():
+    text = (
+        "The proposed facility will include forty-four (44) natural gas fired engines used to "
+        "generate electricity. These engines include: Twenty-five (25) natural gas fired Bergen "
+        "B36:45L9AG model engines with approximately 5.18 MW capacity each. Nineteen (19) "
+        "natural gas fired Bergen B36:45V20 model engines with approximately 12.63 MW capacity "
+        "each."
+    )
+    rows = [(e.count, e.unit_size, e.model, e.role) for e in extract_air_permit(text).equipment]
+    assert rows == [
+        (44, None, None, "subset"),
+        (25, 5.18, "B36:45L9AG", "added"),
+        (19, 12.63, "B36:45V20", "added"),
+    ]

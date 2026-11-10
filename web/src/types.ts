@@ -97,7 +97,20 @@ export interface TickerView {
       unsized: number;
     };
   };
+  sec_mentions: SecNamedSite[];
   recent_signals: (DocRef & { site: string; site_id: number })[];
+}
+
+export interface SecNamedSite {
+  id: number;
+  name: string;
+  county: string | null;
+  status: string;
+  filings: (DocRef & {
+    company: string | null;
+    form: string | null;
+    snippet: string | null;
+  })[];
 }
 
 export interface TickerRow {
@@ -110,6 +123,7 @@ export interface TickerRow {
   site_mw: number;
   supplied_units: number;
   supplied_mw: number;
+  sec_named_sites: number;
 }
 
 // Site list and site page (src/tracker/views/sites.py).
@@ -134,7 +148,7 @@ export interface SiteRow {
   }[];
   lat: number | null;
   lon: number | null;
-  located: "exact" | "city" | "county" | null;
+  located: "exact" | "city" | "county" | "name" | null;
   place: string | null;
 }
 

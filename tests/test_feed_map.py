@@ -136,3 +136,18 @@ def test_supplier_scoreboard_matches_ticker_pages(tmp_path):
     assert by["Make not stated"]["generators"] == 4 and not by["Make not stated"]["known"]
     assert board["makers"][-1]["maker"] == "Make not stated"
     assert board["known_totals"]["generators"] == 6 and board["totals"]["generators"] == 10
+
+
+def test_place_in_site_name():
+    from tracker.locate import place_in_name
+
+    assert place_in_name("Riot Rockdale Data Center 1")[:2] == ("city", "Rockdale")
+    assert place_in_name("USBTC Pecos Data Center")[:2] == ("city", "Pecos")
+    assert place_in_name("Poolside Data Center, Pecos County I")[:2] == ("county", "Pecos County")
+    assert place_in_name("Bexar 1")[:2] == ("county", "Bexar County")
+    assert place_in_name("SDC Austin III LLC")[:2] == ("city", "Austin")  # not Austin County
+    # Towns that are also ordinary words, and creeks named for counties.
+    for name in ("Spectrum Data Center", "Cottonwood Data Center", "Leon Creek", "Beacon Point"):
+        assert place_in_name(name) is None
+    site = Site(name="Riot Rockdale")
+    assert site_location(site, [])["located"] == "name"

@@ -8,6 +8,9 @@ Two sides, as in the build plan:
   never counted in totals.
 - Supply: generators and turbines made by a company with this ticker (Caterpillar, Solar
   Turbines and Perkins all roll up to CAT), counted once per unit as in tracker.rollup.
+- Named in its own SEC filings: sites a filing by this ticker's company names. Kept apart
+  from demand: a filing names a site for many reasons (owner, customer, gas supplier), so
+  it shows involvement, not a role, and is never counted in totals.
 
 Everything returned is plain dicts and lists, ready for JSON. No person's name is ever
 included: only organizations become entities (tracker.entities).
@@ -29,6 +32,7 @@ from tracker.db.models import (
     Link,
     RecordType,
     Signal,
+    SignalType,
     Site,
     Ticker,
 )
@@ -290,6 +294,40 @@ def supply_side(session: Session, symbol: str) -> dict:
     }
 
 
+def sec_mentions(session: Session, symbol: str) -> list[dict]:
+    """Sites named in SEC filings by the company with this ticker, newest filing first."""
+    by_site: dict[int, list[dict]] = defaultdict(list)
+    for sig in session.scalars(select(Signal).where(Signal.type == SignalType.SEC_MENTION)):
+        fields = sig.extractions[-1].fields if sig.extractions else {}
+        if (fields.get("ticker") or "").upper() != symbol:
+            continue
+        # The signal's site links, minus any a reviewer rejected.
+        for link in session.scalars(
+            select(Link).where(
+                Link.from_type == RecordType.SIGNAL,
+                Link.from_id == sig.id,
+                Link.to_type == RecordType.SITE,
+                Link.confidence != Confidence.LOW,
+                not_rejected(),
+            )
+        ):
+            by_site[link.to_id].append(
+                {
+                    **_doc_ref(sig),
+                    "company": fields.get("company"),
+                    "form": fields.get("form"),
+                    "snippet": fields.get("snippet"),
+                }
+            )
+    out = []
+    for site_id, filings in by_site.items():
+        filings.sort(key=lambda f: f["date"] or "", reverse=True)
+        site = session.get(Site, site_id)
+        out.append({**_site_summary(session, site), "filings": filings})
+    out.sort(key=lambda r: r["filings"][0]["date"] or "", reverse=True)
+    return out
+
+
 def recent_signals(demand: dict, supply: dict, limit: int = 10) -> list[dict]:
     seen, out = set(), []
     names = {s["id"]: s["name"] for s in demand["sites"] + supply["sites"]}
@@ -314,7 +352,8 @@ def ticker_view(session: Session, symbol: str) -> dict | None:
     symbol = symbol.upper()
     companies = ticker_companies(session, symbol)
     makers = [s for s in SUPPLIERS if s.ticker == symbol]
-    if not companies and not makers:
+    named = sec_mentions(session, symbol)
+    if not companies and not makers and not named:
         return None
     exchange = session.scalar(select(Ticker.exchange).where(Ticker.symbol == symbol)) or next(
         (s.exchange for s in makers), None
@@ -322,6 +361,8 @@ def ticker_view(session: Session, symbol: str) -> dict | None:
     demand = demand_side(session, companies)
     supply = supply_side(session, symbol)
     names = {c.name for c in companies} | {s.parent or s.name for s in makers}
+    if not names:  # known only from its SEC filings
+        names = {f["company"] for r in named for f in r["filings"] if f["company"]}
     return {
         "symbol": symbol,
         "exchange": exchange,
@@ -329,6 +370,7 @@ def ticker_view(session: Session, symbol: str) -> dict | None:
         "roles": sorted({str(c.role) for c in companies}),
         "demand": demand,
         "supply": supply,
+        "sec_mentions": named,
         "recent_signals": recent_signals(demand, supply),
     }
 
@@ -337,13 +379,17 @@ def ticker_index(session: Session) -> list[dict]:
     """Every ticker with demand-side sites or supplied units, biggest exposure first."""
     symbols = {t.symbol for t in session.scalars(select(Ticker))}
     symbols |= {s.ticker for s in SUPPLIERS if s.ticker}
+    for sig in session.scalars(select(Signal).where(Signal.type == SignalType.SEC_MENTION)):
+        if sig.extractions and sig.extractions[-1].fields.get("ticker"):
+            symbols.add(sig.extractions[-1].fields["ticker"].upper())
     out = []
     for symbol in sorted(symbols):
         view = ticker_view(session, symbol)
         if view is None:
             continue
         d, s = view["demand"]["totals"], view["supply"]["totals"]
-        if not (d["sites"] or s["generators"] or s["turbines"] or view["demand"]["leads"]):
+        named = len(view["sec_mentions"])
+        if not (d["sites"] or s["generators"] or s["turbines"] or view["demand"]["leads"] or named):
             continue
         out.append(
             {
@@ -356,7 +402,10 @@ def ticker_index(session: Session) -> list[dict]:
                 "site_mw": d["mw"],
                 "supplied_units": s["generators"] + s["turbines"],
                 "supplied_mw": s["mw"],
+                "sec_named_sites": named,
             }
         )
-    out.sort(key=lambda r: (-(r["sites"] + r["supplied_units"]), r["symbol"]))
+    out.sort(
+        key=lambda r: (-(r["sites"] + r["supplied_units"]), -r["sec_named_sites"], r["symbol"])
+    )
     return out

@@ -150,6 +150,9 @@ as evidence. Names with more than 10 hits are too common and skipped.
 
 Each verified mention is a `sec_mention` signal on the site at medium confidence: it shows
 public money near the project, not who owns it. A name shared by two sites goes to review.
+The filer's ticker page lists the sites its own filings name in a separate section, never
+counted with the sites it owns, occupies, or operates: a filing names a site for many
+reasons (owner, customer, gas supplier).
 
 The SEC asks automated clients to name a contact in the User-Agent. Put
 `TRACKER_SEC_CONTACT=you@example.com` in `.env` (gitignored); it is sent only to sec.gov.
@@ -224,7 +227,10 @@ document).
 MW and colored by status, beside the site table; filters apply to both. Filings rarely give
 coordinates, so positions are approximate: a site sits at the city its TCEQ records name
 (Census Gazetteer place point) or, failing that, at its county's center (drawn as a ring).
-Sites named only in the Comptroller registry give no place and appear in the table only.
+A site no filing places, but whose own name holds a Texas place ("Riot Rockdale", "Bexar 1",
+"Poolside Data Center, Pecos County I"), sits at that city, or at the county center when the
+name says "County" (also a ring, marked "from site name"). Towns whose names are ordinary
+words ("Center", "Point", "Cottonwood") are never used. The rest appear in the table only.
 `scripts/build_texas_reference.py` builds the county shapes and place points from official
 Census data (run once; its outputs are committed).
 
@@ -344,7 +350,8 @@ src/tracker/
   views/sites.py         site list and site page: owner chain, timeline, equipment
   views/feed.py          feed: filings newest first with site, companies, equipment
   views/suppliers.py     supplier scoreboard: units by manufacturer and quarter
-  locate.py              approximate site positions (city point or county center)
+  locate.py              approximate site positions (city point, county center, or a place
+                         in the site's name)
   review.py              review queue: confirm/reject low links, merges, decision replay
   jobs.py                collection jobs shared by the CLI and the refresh
   refresh.py             weekly refresh: run collectors, change report, health checks
