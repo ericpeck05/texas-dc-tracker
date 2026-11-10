@@ -31,6 +31,7 @@ from tracker.collectors.comptroller.franchise_tax import (
     address_query_url,
     name_query_url,
 )
+from tracker.collectors.puc import interchange as puc
 from tracker.collectors.tceq import central_registry as cr
 from tracker.collectors.tceq.records_online import DEFAULT_KEYWORDS, RecordsOnline, plan_discovery
 from tracker.config import PILOT_COUNTIES, Settings
@@ -40,6 +41,7 @@ from tracker.entities import entity_key
 from tracker.http import PoliteClient, RobotsDisallowed
 from tracker.ingest import IngestResult, ingest_tceq_air
 from tracker.owners import AGENT_OFFICE_MIN, apply_lookup, lookup_targets, saved_lookups
+from tracker.puc_import import PucReport, import_puc
 from tracker.registry_import import ImportReport, import_registry
 from tracker.storage import save_raw
 
@@ -327,6 +329,45 @@ def pull_central_registry(
                 echo(f"              {m.note}")
         for name in report.to_construction:
             echo(f"  under construction  {name}")
+        for line in report.review:
+            echo(f"  review  {line}")
+    return report
+
+
+# --- PUC dockets ---------------------------------------------------------------------
+
+
+def import_puc_file(session, settings: Settings, content: bytes) -> PucReport:
+    snap = puc.Snapshot.from_bytes(content)
+    doc = _snapshot(
+        session,
+        settings,
+        content,
+        source=puc.SOURCE,
+        url=puc.PAGE_URL,
+        ext=".json",
+        content_type="application/json",
+    )
+    return import_puc(session, puc.dockets_from(snap), doc)
+
+
+def pull_puc(
+    settings: Settings, engine: Engine, echo: Echo, *, content: bytes | None = None
+) -> PucReport:
+    if content is None:
+        with PoliteClient(settings) as client:
+            snap = puc.fetch(client)
+        echo(f"{len(snap.urls)} PUC Interchange exports, {len(snap.dockets)} data center dockets")
+        content = snap.to_bytes()
+    with session_scope(engine) as session:
+        report = import_puc_file(session, settings, content)
+        echo(
+            f"{report.dockets} dockets: {report.new_signals} new grid signals, "
+            f"{report.changed} changed"
+        )
+        for m in report.matched:
+            where = m.site.name if m.site else "no site (review)"
+            echo(f"  {m.how:<8} {m.docket.control} {m.docket.party}  ->  {where}")
         for line in report.review:
             echo(f"  review  {line}")
     return report

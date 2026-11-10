@@ -118,6 +118,26 @@ AIR_PERMIT signals. An active construction stormwater authorization from the las
 years moves an early-stage site to under construction. Rows whose principal is an individual
 are dropped before the snapshot is saved.
 
+## PUC dockets (grid)
+
+ERCOT does not publish its large-load queue by project, and its report downloads are closed
+to automated clients by robots.txt, so grid signals come from the Texas PUC's filing system
+(`tracker pull puc`). Only the PUC's own "Export to Excel" downloads are used: one per
+search and one per docket (its filings, with dates and filing parties).
+
+Searches cover filing and case descriptions mentioning data centers or large loads since
+2023, plus filings by the data center companies we track. Kept: project dockets
+(applications, complaints, appeals) whose case, filings, or party point to a data center;
+rulemakings, reports, rate cases, and company-wide licenses (retail provider, QSE) are not.
+A docket brought by a person is dropped, and filing parties that are not organizations are
+removed before anything is stored.
+
+Each docket is a `grid` signal. It goes to the one site whose name shares a distinctive
+word with an applicant, or the one site an applicant is already tied to (medium
+confidence); with several candidates it waits in the review queue; otherwise it starts a
+site named for the applicant. A utility's dockets about an unnamed data center customer (El
+Paso Electric's rate rider and plant) share one site. Applicants are linked as developers.
+
 ## Permit holders
 
 Each TCEQ filing's applicant becomes an entity linked to its site as permit holder
@@ -154,8 +174,8 @@ without downloading.
 ## Weekly refresh
 
 `tracker refresh` runs TCEQ discovery, the Comptroller registry pull, the Chapter 312
-abatement pull, the TCEQ Central Registry pull, and owner lookups for new entities, in that
-order. A source that fails is recorded and the others still run. It
+abatement pull, the TCEQ Central Registry pull, the PUC docket pull, and owner lookups for
+new entities, in that order. A source that fails is recorded and the others still run. It
 writes `data/refresh/<timestamp>.md` (and `.json`), copied to `data/refresh/latest.md`:
 
 - new filings, new sites, status changes, and companies newly tied to a site;
@@ -316,6 +336,8 @@ src/tracker/
   api.py                 FastAPI JSON API, serves web/dist
 web/                     React + Vite frontend
   collectors/comptroller/ Comptroller registry, Chapter 312 abatements, franchise tax file
+  collectors/puc/        Texas PUC Interchange docket exports
+  puc_import.py          PUC dockets: data center filter, site matching
   reference/companies.py companies behind legal names, with tickers
   parsers/pdf.py         pdfplumber with PyMuPDF fallback
   extract/tceq_air.py    rule-based equipment extraction

@@ -19,6 +19,7 @@ from tracker.collectors.comptroller.franchise_tax import SOURCE as FRANCHISE_SOU
 from tracker.collectors.comptroller.franchise_tax import (
     Lookup,
 )
+from tracker.collectors.puc.interchange import SOURCE as PUC_SOURCE
 from tracker.collectors.tceq.air_permits import Fetched, fetch_seeds, read_seeds
 from tracker.collectors.tceq.central_registry import SOURCE as CR_SOURCE
 from tracker.collectors.tceq.records_online import DEFAULT_KEYWORDS
@@ -90,9 +91,15 @@ def db_rebuild() -> None:
     engine = _engine()
     typer.echo(f"Rebuilding from {len(docs)} saved documents (old database: {backup})")
     # Registry snapshots after TCEQ documents, so they match against every TCEQ site as on a
-    # live pull; abatements and the TCEQ Central Registry after both, since they match on the
-    # entities those create; then owner lookups, which need every entity.
-    order = {REGISTRY_SOURCE: 1, ABATEMENT_SOURCE: 2, CR_SOURCE: 3, FRANCHISE_SOURCE: 4}
+    # live pull; abatements, the TCEQ Central Registry, and PUC dockets after both, since they
+    # match on the entities those create; then owner lookups, which need every entity.
+    order = {
+        REGISTRY_SOURCE: 1,
+        ABATEMENT_SOURCE: 2,
+        CR_SOURCE: 3,
+        PUC_SOURCE: 4,
+        FRANCHISE_SOURCE: 5,
+    }
     docs.sort(key=lambda d: order.get(d[4], 0))
     for url, local_path, content_type, site_hint, source in docs:
         raw = Path(local_path)
@@ -118,6 +125,11 @@ def db_rebuild() -> None:
                 f"  central registry  {cr_report.data_centers} data centers, "
                 f"{cr_report.new_signals} new signals"
             )
+            continue
+        if source == PUC_SOURCE:
+            with session_scope(engine) as session:
+                puc_report = jobs.import_puc_file(session, settings, raw.read_bytes())
+            typer.echo(f"  puc  {puc_report.dockets} dockets, {puc_report.new_signals} new signals")
             continue
         if source == FRANCHISE_SOURCE:
             with session_scope(engine) as session:
@@ -212,6 +224,17 @@ def pull_tceq_registry(
     """Pull data center sites from the TCEQ Central Registry: RNs, stormwater, air IDs."""
     content = snapshot.read_bytes() if snapshot is not None else None
     jobs.pull_central_registry(get_settings(), _engine(), typer.echo, content=content)
+
+
+@pull_app.command("puc")
+def pull_puc(
+    snapshot: Annotated[
+        Path | None, typer.Option("--file", help="Import a saved snapshot instead.")
+    ] = None,
+) -> None:
+    """Pull data center dockets from the Texas PUC (grid signals)."""
+    content = snapshot.read_bytes() if snapshot is not None else None
+    jobs.pull_puc(get_settings(), _engine(), typer.echo, content=content)
 
 
 @discover_app.command("tceq")

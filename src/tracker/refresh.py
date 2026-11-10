@@ -211,6 +211,12 @@ def health_checks(report: RefreshReport, previous: dict | None) -> list[Check]:
             ):
                 msg = f"{c['data_centers']} data center sites, {before['data_centers']} last run"
                 checks.append(Check("warn", step.name, msg))
+        elif step.name == "puc_dockets":
+            if c["dockets"] == 0:
+                checks.append(Check("fail", step.name, "no data center dockets returned"))
+            elif before.get("dockets") and c["dockets"] < DROP_WARN * before["dockets"]:
+                msg = f"{c['dockets']} dockets, {before['dockets']} last run"
+                checks.append(Check("warn", step.name, msg))
         elif step.name == "owner_lookups":
             if c["names"] and c["failed"] >= c["names"]:
                 checks.append(Check("fail", step.name, "every franchise tax lookup failed"))
@@ -244,6 +250,7 @@ def run_refresh(
         "comptroller_registry",
         "comptroller_abatements",
         "tceq_central_registry",
+        "puc_dockets",
         "owner_lookups",
     ),
     out_dir: Path | None = None,
@@ -267,6 +274,7 @@ def run_refresh(
         "tceq_central_registry": lambda: _central_registry_counts(
             jobs.pull_central_registry(settings, engine, echo)
         ),
+        "puc_dockets": lambda: _puc_counts(jobs.pull_puc(settings, engine, echo)),
         "owner_lookups": lambda: _owner_counts(
             jobs.lookup_owners(settings, engine, echo, max_names=200)
         ),
@@ -324,6 +332,15 @@ def _central_registry_counts(r) -> dict:
         "sites": r.entities,
         "data_centers": r.data_centers,
         "placed": len(r.matched),
+        "new_signals": r.new_signals,
+        "changed": r.changed,
+        "review": len(r.review),
+    }
+
+
+def _puc_counts(r) -> dict:
+    return {
+        "dockets": r.dockets,
         "new_signals": r.new_signals,
         "changed": r.changed,
         "review": len(r.review),
