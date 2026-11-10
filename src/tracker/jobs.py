@@ -32,6 +32,7 @@ from tracker.collectors.comptroller.franchise_tax import (
     name_query_url,
 )
 from tracker.collectors.puc import interchange as puc
+from tracker.collectors.sec import edgar
 from tracker.collectors.tceq import central_registry as cr
 from tracker.collectors.tceq.records_online import DEFAULT_KEYWORDS, RecordsOnline, plan_discovery
 from tracker.config import PILOT_COUNTIES, Settings
@@ -43,6 +44,7 @@ from tracker.ingest import IngestResult, ingest_tceq_air
 from tracker.owners import AGENT_OFFICE_MIN, apply_lookup, lookup_targets, saved_lookups
 from tracker.puc_import import PucReport, import_puc
 from tracker.registry_import import ImportReport, import_registry
+from tracker.sec_import import SecReport, import_sec, site_queries
 from tracker.storage import save_raw
 
 Echo = Callable[[str], None]
@@ -368,6 +370,47 @@ def pull_puc(
         for m in report.matched:
             where = m.site.name if m.site else "no site (review)"
             echo(f"  {m.how:<8} {m.docket.control} {m.docket.party}  ->  {where}")
+        for line in report.review:
+            echo(f"  review  {line}")
+    return report
+
+
+# --- SEC filings ----------------------------------------------------------------------
+
+
+def import_sec_file(session, settings: Settings, content: bytes) -> SecReport:
+    snap = edgar.Snapshot.from_bytes(content)
+    doc = _snapshot(
+        session,
+        settings,
+        content,
+        source=edgar.SOURCE,
+        url=edgar.PAGE_URL,
+        ext=".json",
+        content_type="application/json",
+    )
+    return import_sec(session, snap.hits, doc)
+
+
+def pull_sec(
+    settings: Settings, engine: Engine, echo: Echo, *, content: bytes | None = None
+) -> SecReport:
+    searches = 0
+    if content is None:
+        with session_scope(engine) as session:
+            queries = site_queries(session)
+        searches = len(queries)
+        echo(f"searching EDGAR for {len(queries)} site names")
+        with PoliteClient(edgar.sec_settings(settings)) as client:
+            snap = edgar.fetch(client, queries, date.today().isoformat())
+        echo(f"{len(snap.urls)} EDGAR requests, {len(snap.hits)} verified mentions")
+        content = snap.to_bytes()
+    with session_scope(engine) as session:
+        report = import_sec_file(session, settings, content)
+        report.searches = searches
+        echo(f"{report.hits} mentions: {report.new_signals} new SEC signals")
+        for phrase, company, site in report.matched:
+            echo(f"  {company} names '{phrase}'  ->  {site}")
         for line in report.review:
             echo(f"  review  {line}")
     return report

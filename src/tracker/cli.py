@@ -20,6 +20,7 @@ from tracker.collectors.comptroller.franchise_tax import (
     Lookup,
 )
 from tracker.collectors.puc.interchange import SOURCE as PUC_SOURCE
+from tracker.collectors.sec.edgar import SOURCE as SEC_SOURCE
 from tracker.collectors.tceq.air_permits import Fetched, fetch_seeds, read_seeds
 from tracker.collectors.tceq.central_registry import SOURCE as CR_SOURCE
 from tracker.collectors.tceq.records_online import DEFAULT_KEYWORDS
@@ -98,7 +99,8 @@ def db_rebuild() -> None:
         ABATEMENT_SOURCE: 2,
         CR_SOURCE: 3,
         PUC_SOURCE: 4,
-        FRANCHISE_SOURCE: 5,
+        SEC_SOURCE: 5,
+        FRANCHISE_SOURCE: 6,
     }
     docs.sort(key=lambda d: order.get(d[4], 0))
     for url, local_path, content_type, site_hint, source in docs:
@@ -130,6 +132,11 @@ def db_rebuild() -> None:
             with session_scope(engine) as session:
                 puc_report = jobs.import_puc_file(session, settings, raw.read_bytes())
             typer.echo(f"  puc  {puc_report.dockets} dockets, {puc_report.new_signals} new signals")
+            continue
+        if source == SEC_SOURCE:
+            with session_scope(engine) as session:
+                sec_report = jobs.import_sec_file(session, settings, raw.read_bytes())
+            typer.echo(f"  sec  {sec_report.hits} mentions, {sec_report.new_signals} new signals")
             continue
         if source == FRANCHISE_SOURCE:
             with session_scope(engine) as session:
@@ -235,6 +242,17 @@ def pull_puc(
     """Pull data center dockets from the Texas PUC (grid signals)."""
     content = snapshot.read_bytes() if snapshot is not None else None
     jobs.pull_puc(get_settings(), _engine(), typer.echo, content=content)
+
+
+@pull_app.command("sec")
+def pull_sec(
+    snapshot: Annotated[
+        Path | None, typer.Option("--file", help="Import a saved snapshot instead.")
+    ] = None,
+) -> None:
+    """Search SEC filings for tracked site names (needs TRACKER_SEC_CONTACT in .env)."""
+    content = snapshot.read_bytes() if snapshot is not None else None
+    jobs.pull_sec(get_settings(), _engine(), typer.echo, content=content)
 
 
 @discover_app.command("tceq")

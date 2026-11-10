@@ -38,6 +38,7 @@ SOURCE_LABEL = {
     "comptroller_ch312": "Comptroller Chapter 312 abatements",
     "tceq_central_registry": "TCEQ Central Registry",
     "puc_interchange": "Texas PUC docket",
+    "sec_edgar": "SEC filing",
 }
 
 

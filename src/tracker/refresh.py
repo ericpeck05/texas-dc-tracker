@@ -217,6 +217,10 @@ def health_checks(report: RefreshReport, previous: dict | None) -> list[Check]:
             elif before.get("dockets") and c["dockets"] < DROP_WARN * before["dockets"]:
                 msg = f"{c['dockets']} dockets, {before['dockets']} last run"
                 checks.append(Check("warn", step.name, msg))
+        elif step.name == "sec_mentions":
+            if c["searches"] and c["searches"] < DROP_WARN * before.get("searches", 0):
+                msg = f"{c['searches']} site names searched, {before['searches']} last run"
+                checks.append(Check("warn", step.name, msg))
         elif step.name == "owner_lookups":
             if c["names"] and c["failed"] >= c["names"]:
                 checks.append(Check("fail", step.name, "every franchise tax lookup failed"))
@@ -251,6 +255,7 @@ def run_refresh(
         "comptroller_abatements",
         "tceq_central_registry",
         "puc_dockets",
+        "sec_mentions",
         "owner_lookups",
     ),
     out_dir: Path | None = None,
@@ -275,6 +280,7 @@ def run_refresh(
             jobs.pull_central_registry(settings, engine, echo)
         ),
         "puc_dockets": lambda: _puc_counts(jobs.pull_puc(settings, engine, echo)),
+        "sec_mentions": lambda: _sec_counts(jobs.pull_sec(settings, engine, echo)),
         "owner_lookups": lambda: _owner_counts(
             jobs.lookup_owners(settings, engine, echo, max_names=200)
         ),
@@ -345,6 +351,10 @@ def _puc_counts(r) -> dict:
         "changed": r.changed,
         "review": len(r.review),
     }
+
+
+def _sec_counts(r) -> dict:
+    return {"searches": r.searches, "mentions": r.hits, "new_signals": r.new_signals}
 
 
 def _owner_counts(r: jobs.OwnersResult) -> dict:

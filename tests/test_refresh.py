@@ -31,6 +31,7 @@ GOOD = {
         "review": 0,
     },
     "puc_dockets": {"dockets": 10, "new_signals": 0, "changed": 0, "review": 0},
+    "sec_mentions": {"searches": 260, "mentions": 5, "new_signals": 0},
     "owner_lookups": {"names": 0, "found": 0, "addresses": 0, "failed": 0},
 }
 
@@ -114,6 +115,7 @@ def test_health_checks_flag_empty_and_shrinking_sources(tmp_path):
         "comptroller_abatements": {**GOOD["comptroller_abatements"], "agreements": 0},
         "tceq_central_registry": {**GOOD["tceq_central_registry"], "data_centers": 0},
         "puc_dockets": {**GOOD["puc_dockets"], "dockets": 0},
+        "sec_mentions": GOOD["sec_mentions"],
         "owner_lookups": {"names": 5, "found": 0, "addresses": 0, "failed": 5},
     }
     report, _ = _run(engine, settings, bad)
@@ -143,10 +145,11 @@ def test_a_crashing_step_does_not_stop_the_others(tmp_path):
             "comptroller_abatements": lambda: GOOD["comptroller_abatements"],
             "tceq_central_registry": lambda: GOOD["tceq_central_registry"],
             "puc_dockets": lambda: GOOD["puc_dockets"],
+            "sec_mentions": lambda: GOOD["sec_mentions"],
             "owner_lookups": lambda: GOOD["owner_lookups"],
         },
     )
-    assert [s.ok for s in report.steps] == [False, True, True, True, True, True]
+    assert [s.ok for s in report.steps] == [False, True, True, True, True, True, True]
     assert any(c.level == "fail" and "portal redesigned" in c.message for c in report.checks)
 
 

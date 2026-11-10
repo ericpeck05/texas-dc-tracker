@@ -138,6 +138,22 @@ confidence); with several candidates it waits in the review queue; otherwise it 
 site named for the applicant. A utility's dockets about an unnamed data center customer (El
 Paso Electric's rate rider and plant) share one site. Applicants are linked as developers.
 
+## SEC filings
+
+`tracker pull sec` searches EDGAR full-text search (the SEC's own API) for each distinctive
+tracked site name as an exact phrase, in 8-K, 10-K, 10-Q, and S-1 filings since 2023. A
+name is distinctive when it has two or more words and one of them is a five-letter word
+that is not generic; a name that is only a place ("Plano Campus") must also say "data
+center", and a company's own name is never searched. A hit counts only after the document
+is read and names the site and Texas (or the site's county or city); the sentence is kept
+as evidence. Names with more than 10 hits are too common and skipped.
+
+Each verified mention is a `sec_mention` signal on the site at medium confidence: it shows
+public money near the project, not who owns it. A name shared by two sites goes to review.
+
+The SEC asks automated clients to name a contact in the User-Agent. Put
+`TRACKER_SEC_CONTACT=you@example.com` in `.env` (gitignored); it is sent only to sec.gov.
+
 ## Permit holders
 
 Each TCEQ filing's applicant becomes an entity linked to its site as permit holder
@@ -174,8 +190,8 @@ without downloading.
 ## Weekly refresh
 
 `tracker refresh` runs TCEQ discovery, the Comptroller registry pull, the Chapter 312
-abatement pull, the TCEQ Central Registry pull, the PUC docket pull, and owner lookups for
-new entities, in that order. A source that fails is recorded and the others still run. It
+abatement pull, the TCEQ Central Registry pull, the PUC docket pull, the SEC search, and owner
+lookups for new entities, in that order. A source that fails is recorded and the others still run. It
 writes `data/refresh/<timestamp>.md` (and `.json`), copied to `data/refresh/latest.md`:
 
 - new filings, new sites, status changes, and companies newly tied to a site;
@@ -337,6 +353,8 @@ src/tracker/
 web/                     React + Vite frontend
   collectors/comptroller/ Comptroller registry, Chapter 312 abatements, franchise tax file
   collectors/puc/        Texas PUC Interchange docket exports
+  collectors/sec/        SEC EDGAR full-text search for site names
+  sec_import.py          SEC mentions: site matching
   puc_import.py          PUC dockets: data center filter, site matching
   reference/companies.py companies behind legal names, with tickers
   parsers/pdf.py         pdfplumber with PyMuPDF fallback
