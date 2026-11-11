@@ -48,31 +48,29 @@ function App() {
     <div className="shell">
       <header className="topbar">
         <a href="#/" className="brand">
-          TX·DC TRACKER
+          <span className="brand-mark" aria-hidden="true" />
+          Texas Data Centers
         </a>
         <nav>
           <a href="#/" className={onOverview ? "here" : undefined}>
             Overview
           </a>
-          <a href="#/feed" className={onFeed ? "here" : undefined}>
-            Feed
-          </a>
           <a href="#/sites" className={onSites ? "here" : undefined}>
-            Map + sites
+            Map
+          </a>
+          <a href="#/feed" className={onFeed ? "here" : undefined}>
+            Latest filings
           </a>
           <a href="#/tickers" className={onTickers ? "here" : undefined}>
-            Tickers
+            Companies
           </a>
           <a href="#/suppliers" className={onSuppliers ? "here" : undefined}>
             Suppliers
           </a>
-          <a href="#/review" className={onReview ? "here" : undefined}>
-            Review
-          </a>
         </nav>
-        <span className="dim">
-          Texas data center filings → sites → companies → tickers
-        </span>
+        <a href="#/review" className={`review-link${onReview ? " here" : ""}`}>
+          Review queue
+        </a>
       </header>
       {page}
     </div>

@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { fetchJson, Inferred, mw, num, statusLabel } from "./format";
 import type { MakerRow, Scoreboard } from "./types";
+import { BarList, Evidence } from "./ui";
 
 type Kind = "all" | "generators" | "turbines";
 type Metric = "units" | "mw";
@@ -56,22 +57,27 @@ export function SupplierPage() {
   const fmt = (v: number) => (metric === "units" ? num(v) : mw(v));
   const quarters = data.quarters;
 
+  const known = makers.filter((m) => m.known);
+  const leader = known[0];
+  const leaderShare = leader && knownTotal ? Math.round((value(leader) / knownTotal) * 100) : 0;
   return (
     <main>
-      <h1 className="page-title">Supplier scoreboard</h1>
-      <p className="dim lede">
-        Generators and turbines in Texas data center air permits, by
-        manufacturer. Each unit counted once per site, as on the site and ticker
-        pages. A unit's quarter is when its permit was first filed. Share is of
-        units whose make the permit names:{" "}
-        {unknown && (
-          <>
-            {num(units(unknown, kind))} of{" "}
-            {num(makers.reduce((s, m) => s + units(m, kind), 0))} permitted
-            units name no manufacturer, so read shares as a sample. A maker marked "inferred" is the only one the permit names, not stated with those units.
-          </>
-        )}
+      <h1 className="page-title">Suppliers</h1>
+      <p className="page-sub">
+        Who makes the generators and turbines going into Texas data centers, counted from air
+        permits.
       </p>
+      {leader && (
+        <p className="lede-big">
+          <strong>{leader.maker}</strong> leads with {leaderShare}% of named{" "}
+          {metric === "mw" ? "capacity" : "units"}
+          {kind !== "all" ? ` (${kind})` : ""}.{" "}
+          {unknown &&
+            `${num(units(unknown, kind))} of ${num(
+              makers.reduce((x, m) => x + units(m, kind), 0),
+            )} permitted units don't name a maker, so treat shares as a sample.`}
+        </p>
+      )}
       <div className="filters">
         <div className="tabs inline">
           {(["all", "generators", "turbines"] as Kind[]).map((k) => (
@@ -96,6 +102,28 @@ export function SupplierPage() {
           ))}
         </div>
       </div>
+      <section className="card">
+        <BarList
+          format={fmt}
+          rows={makers.map((m) => ({
+            key: m.maker,
+            muted: !m.known,
+            label: (
+              <>
+                <span className={m.known ? "co-name" : "dim"}>{m.maker}</span>{" "}
+                {m.ticker && (
+                  <a href={`#/t/${m.ticker}`} className="sym">
+                    {m.ticker}
+                  </a>
+                )}
+              </>
+            ),
+            value: value(m),
+            sub: `${num(m.sites)} site${m.sites === 1 ? "" : "s"}${m.parent ? ` · ${m.parent}` : ""}`,
+          }))}
+        />
+      </section>
+      <Evidence title="Full table" hint="by quarter, models, and the permit page each count comes from">
       <div className="table-side">
         <table className="grid scoreboard">
           <thead>
@@ -209,6 +237,7 @@ export function SupplierPage() {
         Click a manufacturer for the models, sites, and the permit page each
         count comes from.
       </p>
+      </Evidence>
       <footer className="disclaimer">{data.disclaimer}</footer>
     </main>
   );

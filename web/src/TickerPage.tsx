@@ -9,6 +9,16 @@ import {
   statusLabel,
 } from "./format";
 import type { DemandSite, LinkStep, SecNamedSite, TickerView } from "./types";
+import {
+  BarList,
+  Evidence,
+  KindTag,
+  StatusChip,
+  ago,
+  longDate,
+  placePhrase,
+  powerPhrase,
+} from "./ui";
 
 export function TickerPage({ symbol }: { symbol: string }) {
   const [view, setView] = useState<TickerView | null>(null);
@@ -31,7 +41,7 @@ export function TickerPage({ symbol }: { symbol: string }) {
     return (
       <main>
         <a href="#/tickers" className="back">
-          ← tickers
+          ← Companies
         </a>
         <p className="error">{error}</p>
       </main>
@@ -43,102 +53,153 @@ export function TickerPage({ symbol }: { symbol: string }) {
   const hasSupply = view.supply.makers.length > 0;
   const hasDemand = view.roles.length > 0 || view.demand.leads.length > 0;
 
+  const RANK: Record<string, number> = { operating: 0, under_construction: 1, approved: 2 };
+  const sites = [...view.demand.sites].sort(
+    (a, b) =>
+      (RANK[a.status] ?? 9) - (RANK[b.status] ?? 9) ||
+      b.power.mw - a.power.mw ||
+      (b.latest_signal?.date ?? "").localeCompare(a.latest_signal?.date ?? ""),
+  );
+  const byStatus = (st: string) => sites.filter((x) => x.status === st).length;
+  const building = byStatus("under_construction");
+  const approved = byStatus("approved");
+  const name = view.names[0] ?? view.symbol;
+  const sitePower = powerPhrase(d);
+  const supplied = powerPhrase(s);
+
   return (
     <main>
       <a href="#/tickers" className="back">
-        ← tickers
+        ← Companies
       </a>
-      <div className="ticker-head">
-        <h1>
+      <div className="page-head">
+        <h1 className="page-title">{name}</h1>
+        <span className="sym big-sym">
           {view.symbol}
           <span className="dim exch">{view.exchange}</span>
-        </h1>
-        <div className="names">
-          {view.names.join(", ")}
-          {view.roles.length > 0 && (
-            <span className="dim"> · {view.roles.join(", ")}</span>
-          )}
-          {hasSupply && (
-            <span className="dim">
-              {" "}
-              · makes {view.supply.makers.join(", ")}
-            </span>
-          )}
-        </div>
+        </span>
       </div>
-
-      <section className="stats">
-        {hasDemand && (
+      <p className="lede-big">
+        {hasDemand && d.sites > 0 && (
           <>
-            <Stat
-              label="Sites"
-              value={num(d.sites)}
-              sub={`${d.high_confidence_sites} high conf.`}
-            />
-            <Stat label="Generators at sites" value={num(d.generators)} />
-            <Stat label="Turbines at sites" value={num(d.turbines)} />
-            <Stat
-              label="Site MW (permitted)"
-              value={mw(d.mw, d.unsized)}
-              sub={d.unsized ? `${d.unsized} units with no size` : undefined}
-            />
+            {name} is tied to <strong>{num(d.sites)} Texas data center site{d.sites === 1 ? "" : "s"}</strong>
+.{" "}
+            {building + approved > 0 &&
+              `${building ? `${building} under construction` : ""}${building && approved ? " and " : ""}${approved ? `${approved} approved` : ""}; the rest are at the permit stage. `}
+            {sitePower && `Air permits at its sites list ${sitePower}. `}
           </>
         )}
-        {hasSupply && (
+        {hasSupply && supplied && (
           <>
-            <Stat
-              label="Units supplied"
-              value={num(s.generators + s.turbines)}
-              accent
-            />
-            <Stat label="Supplied MW" value={mw(s.mw, s.unsized)} accent />
+            Its {view.supply.makers.join(", ")} equipment appears in permits for{" "}
+            <strong>{supplied}</strong> across {num(view.supply.sites.length)} site
+            {view.supply.sites.length === 1 ? "" : "s"}.{" "}
           </>
         )}
-      </section>
+        {view.sec_mentions.length > 0 &&
+          `Its own SEC filings name ${view.sec_mentions.length} Texas site${view.sec_mentions.length === 1 ? "" : "s"}.`}
+      </p>
 
-      {view.demand.sites.length > 0 && (
-        <DemandTable sites={view.demand.sites} />
-      )}
-      {hasSupply && <SupplyTable view={view} />}
-
-      {view.demand.leads.length > 0 && (
+      {sites.length > 0 && (
         <section>
-          <h2>
-            Leads{" "}
-            <span className="dim">· low confidence, not counted above</span>
-          </h2>
-          <DemandTable sites={view.demand.leads} bare />
+          <h2>Its sites</h2>
+          <div className="site-items grid-2">
+            {sites.map((site) => {
+              const roles = [...new Set(site.ties.map((t) => t.role))].join(", ");
+              const power = powerPhrase(site.power);
+              return (
+                <a key={site.id} href={`#/s/${site.id}`} className="site-item">
+                  <div className="si-top">
+                    <span className="si-name">{site.name}</span>
+                    <StatusChip status={site.status} />
+                  </div>
+                  <div className="si-meta">
+                    {placePhrase(site.county)} · {roles}
+                    {site.confidence === "medium" && <span className="likely">likely</span>}
+                  </div>
+                  <div className="si-meta dim">
+                    {power ? `${power} · ` : ""}last filing {ago(site.latest_signal?.date)}
+                  </div>
+                </a>
+              );
+            })}
+          </div>
         </section>
       )}
 
-      {view.sec_mentions.length > 0 && <SecTable sites={view.sec_mentions} />}
+      {hasSupply && (
+        <section className="card" style={{ marginTop: 20 }}>
+          <h3>Where its equipment goes · units named in air permits</h3>
+          <BarList
+            rows={view.supply.sites.map((x) => ({
+              key: String(x.id),
+              label: <a href={`#/s/${x.id}`}>{x.name}</a>,
+              value: x.generators + x.turbines,
+              sub: x.mw ? `${mw(x.mw)} MW` : undefined,
+            }))}
+          />
+        </section>
+      )}
 
       {view.recent_signals.length > 0 && (
-        <section>
-          <h2>Newest filings</h2>
-          <table className="grid">
-            <tbody>
-              {view.recent_signals.map((r, i) => (
-                <tr key={i} className={isNew(r.date) ? "new" : undefined}>
-                  <td className="mono nowrap">{r.date ?? "—"}</td>
-                  <td>{signalLabel(r.type)}</td>
-                  <td>
-                    <a href={`#/s/${r.site_id}`}>{r.site}</a>
-                  </td>
-                  <td className="mono">{r.permit ?? ""}</td>
-                  <td>
-                    {r.url && (
-                      <a href={r.url} target="_blank" rel="noreferrer">
+        <section className="card" style={{ marginTop: 20 }}>
+          <h3>Newest filings</h3>
+          <ol className="timeline">
+            {view.recent_signals.slice(0, 6).map((r, i) => (
+              <li key={i} className={isNew(r.date) ? "new" : undefined}>
+                <div className="tl-date">
+                  {r.date ? longDate(r.date) : "Undated"} <KindTag type={r.type} />
+                </div>
+                <div className="tl-title">
+                  <a href={`#/s/${r.site_id}`}>{r.site}</a>
+                  {r.url && (
+                    <>
+                      {" · "}
+                      <a href={r.url} target="_blank" rel="noreferrer" className="dim">
                         document ↗
                       </a>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    </>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ol>
         </section>
       )}
+
+      <Evidence title="Show the evidence" hint="how each site is tied, counts, permits, SEC text">
+        <section className="stats">
+          {hasDemand && (
+            <>
+              <Stat label="Sites" value={num(d.sites)} sub={`${d.high_confidence_sites} high conf.`} />
+              <Stat label="Generators at sites" value={num(d.generators)} />
+              <Stat label="Turbines at sites" value={num(d.turbines)} />
+              <Stat
+                label="Site MW (permitted)"
+                value={mw(d.mw, d.unsized)}
+                sub={d.unsized ? `${d.unsized} units with no size` : undefined}
+              />
+            </>
+          )}
+          {hasSupply && (
+            <>
+              <Stat label="Units supplied" value={num(s.generators + s.turbines)} accent />
+              <Stat label="Supplied MW" value={mw(s.mw, s.unsized)} accent />
+            </>
+          )}
+        </section>
+        {sites.length > 0 && <DemandTable sites={sites} />}
+        {hasSupply && <SupplyTable view={view} />}
+        {view.demand.leads.length > 0 && (
+          <section>
+            <h2>
+              Leads <span className="dim">· low confidence, not counted above</span>
+            </h2>
+            <DemandTable sites={view.demand.leads} bare />
+          </section>
+        )}
+        {view.sec_mentions.length > 0 && <SecTable sites={view.sec_mentions} />}
+      </Evidence>
 
       <footer className="disclaimer">{view.disclaimer}</footer>
     </main>
@@ -294,7 +355,7 @@ function DemandTable({ sites, bare }: { sites: DemandSite[]; bare?: boolean }) {
               {open === site.id && (
                 <tr className="detail">
                   <td colSpan={9}>
-                    <Evidence site={site} />
+                    <TieEvidence site={site} />
                   </td>
                 </tr>
               )}
@@ -333,7 +394,7 @@ function Step({ label, step }: { label: string; step: LinkStep }) {
   );
 }
 
-function Evidence({ site }: { site: DemandSite }) {
+function TieEvidence({ site }: { site: DemandSite }) {
   return (
     <div className="evidence">
       {site.ties.map((t, i) => (

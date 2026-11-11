@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { mw, num } from "./format";
 import type { TickerRow } from "./types";
+import { BarList, Evidence } from "./ui";
 
 export function TickerIndex() {
   const [rows, setRows] = useState<TickerRow[] | null>(null);
@@ -22,16 +23,72 @@ export function TickerIndex() {
   if (error) return <p className="error">Could not load tickers: {error}</p>;
   if (!rows) return <p className="dim pad">Loading…</p>;
 
+  const builders = rows.filter((r) => r.sites > 0).sort((a, b) => b.sites - a.sites);
+  const suppliers = rows
+    .filter((r) => r.supplied_units > 0)
+    .sort((a, b) => b.supplied_units - a.supplied_units);
+  const secOnly = rows.filter((r) => !r.sites && !r.supplied_units && r.sec_named_sites);
+  const label = (r: TickerRow) => (
+    <a href={`#/t/${r.symbol}`} className="co-name">
+      {r.names[0] ?? r.symbol} <span className="sym">{r.symbol}</span>
+    </a>
+  );
+
   return (
     <main>
-      <h1 className="page-title">Tickers</h1>
-      <p className="dim lede">
-        Public companies tied to Texas data center sites (owner, tenant,
-        operator, permit holder) or supplying their generators and turbines.
-        Medium and high confidence only; low confidence ties are counted as
-        leads. "In SEC filings" counts sites the company's own filings name,
-        apart from any role.
+      <h1 className="page-title">Companies</h1>
+      <p className="page-sub">
+        Public companies behind Texas data center sites, and the ones whose generators and
+        turbines go into them. Click one for its sites.
       </p>
+      <div className="cards">
+        <section className="card">
+          <h3>Building in Texas · sites tied to each company</h3>
+          <BarList
+            rows={builders.map((r) => ({
+              key: r.symbol,
+              label: label(r),
+              value: r.sites,
+              sub: [
+                r.site_mw ? `${mw(r.site_mw)} MW on-site power` : null,
+                r.leads ? `${r.leads} more possible` : null,
+              ]
+                .filter(Boolean)
+                .join(" · "),
+            }))}
+          />
+        </section>
+        {suppliers.length > 0 && (
+          <section className="card">
+            <h3>Supplying power equipment · generators and turbines in permits</h3>
+            <BarList
+              rows={suppliers.map((r) => ({
+                key: r.symbol,
+                label: label(r),
+                value: r.supplied_units,
+                sub: r.supplied_mw ? `${mw(r.supplied_mw)} MW` : undefined,
+              }))}
+            />
+          </section>
+        )}
+      </div>
+      {secOnly.length > 0 && (
+        <p className="dim small">
+          Also named in their own SEC filings about a Texas site:{" "}
+          {secOnly.map((r, i) => (
+            <span key={r.symbol}>
+              {i > 0 && ", "}
+              <a href={`#/t/${r.symbol}`}>{r.names[0] ?? r.symbol}</a>
+            </span>
+          ))}
+          .
+        </p>
+      )}
+      <Evidence title="Full table" hint="confidence levels, leads, SEC mentions, MW">
+        <p className="dim small">
+          Medium and high confidence only; low confidence ties are counted as leads. "In SEC
+          filings" counts sites the company's own filings name, apart from any role.
+        </p>
       <table className="grid">
         <thead>
           <tr>
@@ -78,6 +135,8 @@ export function TickerIndex() {
           ))}
         </tbody>
       </table>
+      </Evidence>
+
       <footer className="disclaimer">{disclaimer}</footer>
     </main>
   );

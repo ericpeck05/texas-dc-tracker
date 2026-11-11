@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { fetchJson, mw, num, statusLabel } from "./format";
 import type { Overview, OverviewCompany, OverviewSite, PaceQuarter } from "./types";
+import { BarList, Evidence, Kpi, ago, longDate, placePhrase } from "./ui";
 
 // Single-series quarterly bars. The current quarter is not over, so it is drawn hollow.
 function QuarterBars({
@@ -260,73 +261,64 @@ export function OverviewPage() {
   return (
     <main>
       <h1 className="page-title">Overview</h1>
-      <p className="dim lede">
-        Who is building data centers in Texas and how fast, summed up from every public filing
-        the tracker has. As of {data.as_of}.
+      <p className="page-sub">
+        Who is building data centers in Texas, and how fast. Summed up from every public filing
+        the tracker has, as of {longDate(data.as_of)}.
       </p>
 
-      <div className="stats">
-        <div className="stat">
-          <div className="stat-label">Sites tracked</div>
-          <div className="stat-value mono">{num(t.sites)}</div>
-          <div className="stat-sub dim">
-            {num(t.status.under_construction ?? 0)} under construction ·{" "}
-            {num(t.status.approved ?? 0)} approved
-          </div>
-        </div>
-        <div className="stat">
-          <div className="stat-label">New in last 12 months</div>
-          <div className="stat-value mono">{num(t.new_12m)}</div>
-          <div className="stat-sub dim">
-            {growth !== null
-              ? `${growth >= 0 ? "+" : ""}${growth}% vs the 12 before (${num(t.new_prior_12m)})`
-              : "first filings"}
-          </div>
-        </div>
-        <div className="stat">
-          <div className="stat-label">Tied to a named company</div>
-          <div className="stat-value mono">{num(t.named)}</div>
-          <div className="stat-sub dim">
-            {Math.round((t.named / Math.max(1, t.sites)) * 100)}% of sites ·{" "}
-            {num(data.companies.length)} companies
-          </div>
-        </div>
-        <div className="stat">
-          <div className="stat-label">Generators + turbines</div>
-          <div className="stat-value mono">{num(t.units)}</div>
-          <div className="stat-sub dim">in air permits at {num(t.unit_sites)} sites</div>
-        </div>
-        <div className="stat">
-          <div className="stat-label">Sized on-site power</div>
-          <div className="stat-value mono">{mw(t.mw)} MW</div>
-          <div className="stat-sub dim">only {num(t.powered_sites)} sites give unit sizes</div>
-        </div>
+      <div className="kpis">
+        <Kpi
+          label="Sites tracked"
+          value={num(t.sites)}
+          sub={`${num(t.status.under_construction ?? 0)} under construction · ${num(t.status.approved ?? 0)} approved`}
+        />
+        <Kpi
+          label="New in the last 12 months"
+          value={num(t.new_12m)}
+          sub={
+            growth !== null
+              ? `${growth >= 0 ? "up" : "down"} ${Math.abs(growth)}% on the year before`
+              : "first filings"
+          }
+        />
+        <Kpi
+          label="Tied to a named company"
+          value={`${Math.round((t.named / Math.max(1, t.sites)) * 100)}%`}
+          sub={`${num(t.named)} sites · ${num(data.companies.length)} companies`}
+        />
+        <Kpi
+          label="Generators + turbines permitted"
+          value={num(t.units)}
+          sub={`at ${num(t.unit_sites)} sites`}
+        />
       </div>
 
-      <h2>What stands out</h2>
-      <ul className="takeaways">
-        {data.takeaways.map((line) => (
-          <li key={line}>{line}</li>
-        ))}
-      </ul>
+      <section className="card">
+        <h3>What stands out</h3>
+        <ul className="takeaways">
+          {data.takeaways.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="card" style={{ marginTop: 16 }}>
+        <h3>New sites per quarter · by the date of each site's first public filing</h3>
+        <div className="pace-head">
+          <span className="pace-num">{num(sites.recent)}</span>{" "}
+          <span className="dim">new sites in the last 4 full quarters ·</span>{" "}
+          <Change {...sites} />
+        </div>
+        <QuarterBars
+          rows={data.pace}
+          value={(q) => q.new_sites}
+          unit={(n) => `${num(n)} new site${n === 1 ? "" : "s"}`}
+          height={180}
+        />
+      </section>
 
       <h2>
-        Pace <span className="dim">· new sites by the quarter of their first public filing</span>
-      </h2>
-      <div className="pace-head">
-        <span className="mono">{num(sites.recent)}</span>{" "}
-        <span className="dim">new sites in the last 4 full quarters</span> ·{" "}
-        <Change {...sites} />
-      </div>
-      <QuarterBars
-        rows={data.pace}
-        value={(q) => q.new_sites}
-        unit={(n) => `${num(n)} new site${n === 1 ? "" : "s"}`}
-        height={180}
-      />
-
-      <h2>
-        Filings by kind <span className="dim">· each is a stage of a build; own scale per chart</span>
+        Each stage of a build, per quarter <span className="dim">· own scale per chart</span>
       </h2>
       <div className="multiples">
         {KINDS.map((k) => {
@@ -368,132 +360,126 @@ export function OverviewPage() {
         </div>
       </div>
       <p className="dim small">
-        Hover a bar for its count. The current quarter is hollow because it is not over. Years
-        before 2021 are left out; sources reach back unevenly, so older years look quieter than
-        they were.
+        Hover a bar for its count. The current quarter is hollow because it isn't over. Sources
+        reach back unevenly, so years before 2021 are left out.
       </p>
 
-      <h2>
-        Who is building{" "}
-        <span className="dim">· companies tied to sites at medium or high confidence</span>
-      </h2>
-      <table className="grid">
-        <thead>
-          <tr>
-            <th>Company</th>
-            <th>Ticker</th>
-            <th>Sites</th>
-            <th className="r">New 12 mo</th>
-            <th className="r">Building</th>
-            <th className="r">Approved</th>
-            <th className="r">Filed</th>
-            <th className="r">Sized MW</th>
-            <th className="r">Since</th>
-            <th className="r">Latest filing</th>
-          </tr>
-        </thead>
-        <tbody>
-          {companies.map((c) => (
-            <CompanyRow
-              key={c.company}
-              c={c}
-              most={most}
-              open={open === c.company}
-              toggle={() => setOpen(open === c.company ? null : c.company)}
-            />
-          ))}
-        </tbody>
-      </table>
-      {data.companies.length > 12 && (
-        <button className="linkish" onClick={() => setAllCompanies(!allCompanies)}>
-          {allCompanies ? "Show top 12" : `Show all ${data.companies.length} companies`}
-        </button>
-      )}
-      <p className="dim small">
-        Click a company for its sites. A site with several companies (a developer and its
-        tenant) counts for each. "Building" and "Approved" come from the latest status the
-        filings show. Sized MW counts only units whose size a permit gives.
-      </p>
-
-      {data.other_names.length > 0 && (
-        <>
-          <h2>
-            Other names on filings{" "}
-            <span className="dim">
-              · owners, operators and tenants not yet traced to a parent company
-            </span>
-          </h2>
-          <ul className="names-list">
-            {data.other_names.slice(0, 24).map((o) => (
-              <li key={o.entity}>
-                <span>{o.entity}</span>{" "}
-                <span className="dim small">
-                  <SiteLinks sites={o.sites} limit={3} />
-                </span>
-              </li>
-            ))}
-          </ul>
-          {data.other_names.length > 24 && (
-            <p className="dim small">+{data.other_names.length - 24} more on the site pages.</p>
-          )}
-        </>
-      )}
-
-      <div className="two-col">
-        <section>
-          <h2>Where</h2>
-          <table className="grid">
-            <thead>
-              <tr>
-                <th>County</th>
-                <th className="r">Sites</th>
-                <th className="r">New 12 mo</th>
-                <th className="r">Sized MW</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.counties.slice(0, 12).map((c) => (
-                <tr key={c.county}>
-                  <td>{c.county}</td>
-                  <td className="r mono">{num(c.sites)}</td>
-                  <td className={`r mono${c.new_12m ? "" : " dim"}`}>{c.new_12m || "–"}</td>
-                  <td className="r mono">{c.mw ? mw(c.mw) : "–"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="dim small">
-            {num(t.sites - data.counties.reduce((a, c) => a + c.sites, 0))} sites have no county
-            yet. <a href="#/sites">Map + sites</a> has every site.
-          </p>
+      <div className="cards">
+        <section className="card">
+          <h3>Who is building · sites tied to each company</h3>
+          <BarList
+            rows={data.companies.slice(0, 10).map((c) => ({
+              key: c.company,
+              label: c.ticker ? (
+                <a href={`#/t/${c.ticker}`} className="co-name">
+                  {c.company} <span className="sym">{c.ticker}</span>
+                </a>
+              ) : (
+                <span className="co-name">{c.company}</span>
+              ),
+              value: c.sites.length,
+              sub: [
+                c.new_12m ? `${c.new_12m} new this year` : null,
+                c.status.under_construction ? `${c.status.under_construction} building` : null,
+              ]
+                .filter(Boolean)
+                .join(" · "),
+            }))}
+          />
         </section>
-        <section>
-          <h2>Newest sites</h2>
-          <table className="grid">
-            <thead>
-              <tr>
-                <th>Site</th>
-                <th>County</th>
-                <th className="r">First filing</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.newest.map((s) => (
-                <tr key={s.id}>
-                  <td>
-                    <a href={`#/s/${s.id}`}>{s.name}</a>
-                  </td>
-                  <td className="dim">{s.county ?? "—"}</td>
-                  <td className="r mono nowrap">{s.first}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="dim small">
-            <a href="#/feed">The feed</a> has every filing, newest first.
+        <section className="card">
+          <h3>Where · busiest counties</h3>
+          <BarList
+            rows={data.counties.slice(0, 10).map((c) => ({
+              key: c.county,
+              label: c.county,
+              value: c.sites,
+              sub: c.new_12m ? `${c.new_12m} new this year` : undefined,
+            }))}
+          />
+          <p className="dim small" style={{ marginBottom: 0 }}>
+            {num(t.sites - data.counties.reduce((a, c) => a + c.sites, 0))} sites have no
+            county in their filings yet.
           </p>
         </section>
       </div>
+
+      <section className="card">
+        <h3>Newest sites</h3>
+        <div className="newest">
+          {data.newest.map((s) => (
+            <a key={s.id} href={`#/s/${s.id}`} className="newest-item">
+              <span className="si-name">{s.name}</span>
+              <span className="dim small">
+                {placePhrase(s.county)} · first filing {ago(s.first)}
+              </span>
+            </a>
+          ))}
+        </div>
+        <p className="dim small" style={{ marginBottom: 0 }}>
+          <a href="#/feed">Latest filings</a> has every filing, newest first.
+        </p>
+      </section>
+
+      <Evidence title="Full company table" hint="status counts, sized MW, first and latest filing, untraced names">
+        <table className="grid">
+          <thead>
+            <tr>
+              <th>Company</th>
+              <th>Ticker</th>
+              <th>Sites</th>
+              <th className="r">New 12 mo</th>
+              <th className="r">Building</th>
+              <th className="r">Approved</th>
+              <th className="r">Filed</th>
+              <th className="r">Sized MW</th>
+              <th className="r">Since</th>
+              <th className="r">Latest filing</th>
+            </tr>
+          </thead>
+          <tbody>
+            {companies.map((c) => (
+              <CompanyRow
+                key={c.company}
+                c={c}
+                most={most}
+                open={open === c.company}
+                toggle={() => setOpen(open === c.company ? null : c.company)}
+              />
+            ))}
+          </tbody>
+        </table>
+        {data.companies.length > 12 && (
+          <button className="linkish" onClick={() => setAllCompanies(!allCompanies)}>
+            {allCompanies ? "Show top 12" : `Show all ${data.companies.length} companies`}
+          </button>
+        )}
+        <p className="dim small">
+          Click a company for its sites. A site with several companies (a developer and its
+          tenant) counts for each. Sized MW counts only units whose size a permit gives.
+        </p>
+        {data.other_names.length > 0 && (
+          <>
+            <h2>
+              Other names on filings{" "}
+              <span className="dim">
+                · owners, operators and tenants not yet traced to a parent company
+              </span>
+            </h2>
+            <ul className="names-list">
+              {data.other_names.slice(0, 24).map((o) => (
+                <li key={o.entity}>
+                  <span>{o.entity}</span>{" "}
+                  <span className="dim small">
+                    <SiteLinks sites={o.sites} limit={3} />
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </Evidence>
+
 
       <footer className="disclaimer">{data.disclaimer}</footer>
     </main>
