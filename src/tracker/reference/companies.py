@@ -111,6 +111,29 @@ COMPANIES: tuple[KnownCompany, ...] = (
     # On-site power: gas generator microgrids that run as the site's power plant.
     KnownCompany("Enchanted Rock", S, None, None, _p(r"\bEnchanted\s+Rock\b")),
     KnownCompany("Poolside", OTHER, None, None, _p(r"\bPoolside\b")),
+    # Musk companies build AI compute inside their own campuses, filed under factory names.
+    # xAI merged into SpaceX in February 2026, so its legal names count as SpaceX.
+    KnownCompany(
+        "SpaceX",
+        OTHER,
+        "SPCX",
+        "NASDAQ",
+        _p(r"\bSpace\s+Exploration\s+Technologies\b|\bSpaceX\b|\bX\.AI\b|\bxAI\s+Holdings\b"),
+        (
+            "Space Exploration Technologies Corp.",
+            "X.AI Corp.",
+            "X.AI LLC",
+            "XAI Holdings LLC",
+        ),
+    ),
+    KnownCompany(
+        "Tesla",
+        OTHER,
+        "TSLA",
+        "NASDAQ",
+        _p(r"\bTesla,?\s+(?:Inc\b|Semiconductor\b|Energy\s+Operations\b)"),
+        ("Tesla, Inc.",),
+    ),
     KnownCompany("Anthropic", OTHER, None, None, _p(r"\bAnthropic\b"), ("Anthropic, PBC",)),
 )
 

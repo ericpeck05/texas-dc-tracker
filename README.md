@@ -174,6 +174,25 @@ at a line break joins its full name. Only organizations become entities: a name 
 company marker (LLC, Inc., Association, ...) is skipped, so no person's name is stored.
 `tracker sites` lists each site's permit holders and companies.
 
+## Announced projects and hand-placed sites
+
+Some projects are public before any state record calls them a data center. SpaceX's
+Starbase "super-compute facility" appeared first in a city hearing notice, and TCEQ files
+SpaceX and Tesla sites under their factories with manufacturing industry codes.
+
+There are two seed files for these, each row with a source URL. Both are re-applied on
+`tracker db rebuild` and by `tracker announced`.
+- `seeds/announced_projects.csv` adds the site with a **notice** signal. It ties the company
+  the notice names at medium confidence.
+- `seeds/site_places.csv` fills in a county or city when a site's own filings give none.
+  For example, the Comptroller registry lists "Giga Texas Datacenter" with no address, and
+  TCEQ's Tesla record puts it in Travis County.
+
+Tesla (TSLA) and SpaceX (SPCX) are on the company list. xAI's legal names count as SpaceX,
+because xAI merged into SpaceX in February 2026. Each refresh also watches their own TCEQ
+records and Chapter 312 abatements for sites named as compute facilities ("super-compute",
+"Cortex", "Colossus"). Real filings then attach as they appear.
+
 ## Owner lookups
 
 Project LLCs ("Nolan Ranch DC Owner LLC") rarely say who is behind them. Three steps:

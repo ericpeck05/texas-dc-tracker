@@ -13,6 +13,7 @@ import typer
 from sqlalchemy import func, select
 
 from tracker import jobs
+from tracker.announced import apply_places, apply_projects, read_places, read_projects
 from tracker.collectors.comptroller.abatements import SOURCE as ABATEMENT_SOURCE
 from tracker.collectors.comptroller.data_center_registry import SOURCE as REGISTRY_SOURCE
 from tracker.collectors.comptroller.franchise_tax import SOURCE as FRANCHISE_SOURCE
@@ -157,6 +158,7 @@ def db_rebuild() -> None:
         missing = apply_findings(session, read_findings())
     for name in missing:
         typer.echo(f"  owner finding for unknown entity: {name}")
+    _apply_announced(engine)
     with session_scope(engine) as session:
         decisions = read_decisions()
         stale = apply_decisions(session, decisions)
@@ -520,6 +522,21 @@ def owners_apply() -> None:
     typer.echo(f"{len(findings)} findings applied")
     for name in missing:
         typer.echo(f"  no entity named {name!r}")
+
+
+def _apply_announced(engine) -> None:
+    with session_scope(engine) as session:
+        added = apply_projects(session, read_projects())
+        unplaced = apply_places(session, read_places())
+    typer.echo(f"  announced projects  {added} new notices")
+    for name in unplaced:
+        typer.echo(f"  site place for unknown site: {name}")
+
+
+@app.command("announced")
+def announced_apply() -> None:
+    """Apply seeds/announced_projects.csv and seeds/site_places.csv (hand-entered, sourced)."""
+    _apply_announced(_engine())
 
 
 @app.command("serve")

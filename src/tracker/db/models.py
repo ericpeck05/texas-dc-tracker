@@ -43,6 +43,7 @@ class SignalType(StrEnum):
     INCENTIVE = "incentive"
     GRID = "grid"
     SEC_MENTION = "sec_mention"
+    NOTICE = "notice"  # a public notice or announcement, entered by hand with its source
 
 
 class EquipmentCategory(StrEnum):
