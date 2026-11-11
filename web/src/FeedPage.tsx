@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { fetchJson, isNew, mw, num, signalLabel, statusLabel } from "./format";
-import type { FeedResponse } from "./types";
+import { fetchJson, num, signalLabel } from "./format";
+import type { FeedItem, FeedResponse } from "./types";
+import { Companies, KIND, KindTag, StatusChip, ago, longDate, placePhrase, powerPhrase } from "./ui";
+
+function groupByDay(items: FeedItem[]): [string, { it: FeedItem; i: number }[]][] {
+  const out = new Map<string, { it: FeedItem; i: number }[]>();
+  items.forEach((it, i) => out.set(it.date, [...(out.get(it.date) ?? []), { it, i }]));
+  return [...out.entries()];
+}
 
 const WINDOWS: { days: number; label: string; key: string }[] = [
   { days: 7, label: "7 days", key: "1" },
@@ -25,7 +32,7 @@ export function FeedPage() {
   const [data, setData] = useState<FeedResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [current, setCurrent] = useState(0);
-  const rows = useRef<(HTMLTableRowElement | null)[]>([]);
+  const rows = useRef<(HTMLDivElement | null)[]>([]);
 
   useEffect(() => {
     setError(null);
@@ -77,11 +84,10 @@ export function FeedPage() {
 
   return (
     <main>
-      <h1 className="page-title">Feed</h1>
-      <p className="dim lede">
-        Filings newest first, by the date on the document. Amber rows are from
-        the last 30 days. Equipment is what that one filing lists.
-        {data?.latest_filing && ` Latest filing: ${data.latest_filing}.`}
+      <h1 className="page-title">Latest filings</h1>
+      <p className="page-sub">
+        Every new permit, registration and notice, newest first, in plain words.
+        {data?.latest_filing && ` The most recent is from ${longDate(data.latest_filing)}.`}
       </p>
       <div className="filters">
         <div className="tabs inline">
@@ -97,10 +103,10 @@ export function FeedPage() {
           ))}
         </div>
         <select value={type} onChange={(e) => setType(e.target.value)}>
-          <option value="">All signal types</option>
+          <option value="">All kinds of filing</option>
           {TYPES.map((t) => (
             <option key={t} value={t}>
-              {signalLabel(t)}
+              {KIND[t]?.label ?? signalLabel(t)}
             </option>
           ))}
         </select>
@@ -119,105 +125,66 @@ export function FeedPage() {
         </p>
       )}
       {items.length > 0 && (
-        <table className="grid feed">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Type</th>
-              <th>Filing</th>
-              <th>Site</th>
-              <th>Companies</th>
-              <th className="r">Gen. / turb.</th>
-              <th className="r">MW</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((it, i) => (
-              <tr
-                key={it.id}
-                ref={(el) => (rows.current[i] = el)}
-                className={`${isNew(it.date) ? "new" : ""}${i === current ? " current" : ""}`}
-                onClick={() => setCurrent(i)}
-              >
-                <td className={`mono nowrap${isNew(it.date) ? " accent" : ""}`}>
-                  {it.date}
-                </td>
-                <td className="nowrap">
-                  <span className="tag">{signalLabel(it.type)}</span>
-                </td>
-                <td>
-                  {it.url ? (
-                    <a href={it.url} target="_blank" rel="noreferrer">
-                      {it.title ?? it.permit ?? "document"}
-                    </a>
-                  ) : (
-                    (it.title ?? it.permit)
-                  )}
-                  {it.status && (
-                    <span className="dim"> · {it.status.toLowerCase()}</span>
-                  )}
-                  {it.revised && <span className="accent"> · revised</span>}
-                  <div className="dim small">{it.source_label}</div>
-                </td>
-                <td>
-                  {it.site ? (
-                    <>
-                      <a href={`#/s/${it.site.id}`}>{it.site.name}</a>
-                      <div className="dim small">
-                        {it.site.county
-                          ? `${it.site.county} County`
-                          : "county unknown"}{" "}
-                        · {statusLabel(it.site.status)}
-                      </div>
-                    </>
-                  ) : (
-                    <a href="#/review" className="dim">
-                      no site yet: review
-                    </a>
-                  )}
-                </td>
-                <td>
-                  {it.companies.map((c, j) => (
-                    <span key={c.company} className="nowrap">
-                      {j > 0 && ", "}
-                      {c.ticker ? (
-                        <a href={`#/t/${c.ticker}`} className="sym">
-                          {c.ticker}
-                        </a>
-                      ) : (
-                        c.company
-                      )}
-                      {c.confidence === "medium" && (
-                        <span className="dim">?</span>
-                      )}
-                    </span>
-                  ))}
-                </td>
-                <td className="r mono">
-                  {it.equipment.generators || it.equipment.turbines
-                    ? `${num(it.equipment.generators)} / ${num(it.equipment.turbines)}`
-                    : "–"}
-                </td>
-                <td className="r mono">
-                  {it.equipment.mw && it.url ? (
-                    <a
-                      href={it.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="num-link"
+        <div className="feed-days">
+          {groupByDay(items).map(([day, group]) => (
+            <section key={day} className="feed-day">
+              <h2 className="feed-date">
+                {longDate(day)} <span className="dim">· {ago(day)}</span>
+              </h2>
+              <div className="feed-items">
+                {group.map(({ it, i }) => {
+                  const eq = powerPhrase(it.equipment);
+                  return (
+                    <div
+                      key={it.id}
+                      ref={(el) => (rows.current[i] = el)}
+                      className={`feed-item${i === current ? " current" : ""}`}
+                      onClick={() => setCurrent(i)}
                     >
-                      {mw(it.equipment.mw)}
-                    </a>
-                  ) : it.equipment.mw ? (
-                    mw(it.equipment.mw)
-                  ) : (
-                    "–"
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                      <div className="fi-head">
+                        <KindTag type={it.type} />
+                        {it.site ? (
+                          <a href={`#/s/${it.site.id}`} className="fi-site">
+                            {it.site.name}
+                          </a>
+                        ) : (
+                          <a href="#/review" className="fi-site dim">
+                            Not matched to a site yet
+                          </a>
+                        )}
+                        {it.site && <StatusChip status={it.site.status} />}
+                        {it.revised && <span className="accent small">revised</span>}
+                      </div>
+                      <div className="fi-what">
+                        {KIND[it.type]?.means && (
+                          <span className="dim">
+                            {KIND[it.type].means[0].toUpperCase() + KIND[it.type].means.slice(1)}:{" "}
+                          </span>
+                        )}
+                        {it.url ? (
+                          <a href={it.url} target="_blank" rel="noreferrer">
+                            {it.title ?? it.permit ?? "document"}
+                          </a>
+                        ) : (
+                          (it.title ?? it.permit)
+                        )}
+                      </div>
+                      <div className="fi-meta">
+                        {it.site && <span>{placePhrase(it.site.county)}</span>}
+                        {it.companies.length > 0 && (
+                          <span>
+                            <Companies items={it.companies} />
+                          </span>
+                        )}
+                        {eq && <span>{eq}</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
       )}
       {data && <footer className="disclaimer">{data.disclaimer}</footer>}
     </main>

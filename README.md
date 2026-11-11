@@ -241,6 +241,22 @@ move the project, then check with `tracker schedule run-now`.
 
 ## Site pages
 
+Every page leads with a plain summary and puts the raw records in a "Show the evidence"
+drawer at the bottom:
+- **Overview:** headline tiles, takeaways, pace charts, and bars for who is building and
+  where.
+- **Map:** a large map beside a short card for each site.
+- **Site page:** a sentence on what the project is, a bar showing its build stage (announced,
+  filed, approved, under construction, operating), who is behind it, its on-site power, and
+  a timeline of its filings.
+- **Latest filings:** filings grouped by day, each saying in plain words what it is.
+- **Companies and Suppliers:** ranked bars.
+
+The detailed tables are still there for anyone who wants them. They hold the owner chains
+with confidence levels, equipment rows with permit pages, and how each filing was matched.
+The site list also has a Table view.
+
+
 `tracker serve` runs a JSON API (docs at `/api/docs`) and the React app in `web/`. It is
 read-only except for review decisions (below); keep it on 127.0.0.1.
 The app opens on the **overview** (`/api/overview`), which sums everything up to answer who is
