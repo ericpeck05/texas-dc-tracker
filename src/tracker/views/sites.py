@@ -39,6 +39,7 @@ SOURCE_LABEL = {
     "tceq_central_registry": "TCEQ Central Registry",
     "puc_interchange": "Texas PUC docket",
     "sec_edgar": "SEC filing",
+    "public_notice": "Public notice (entered by hand)",
 }
 
 

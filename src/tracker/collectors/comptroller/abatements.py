@@ -50,6 +50,7 @@ REQUIRED = (
 )
 DATA_CENTER_NAICS = "5182"  # 518210: computing infrastructure, data processing, hosting
 DATA_CENTER_RE = re.compile(r"\bdata\s?cent(?:er|re)s?\b|\bdatacent", re.IGNORECASE)
+COMPUTE_RE = re.compile(r"\bsuper[\s-]?comput\w*|\bcompute\s+(?:facility|campus|center)\b", re.I)
 # Owner cells list several owners: "ET Amarillo LLC & Amazon.com Services LLC".
 OWNER_SPLIT_RE = re.compile(r"\s+&\s+|\s*;\s*|\s+and\s+(?=[A-Z])")
 GOVERNMENT_RE = re.compile(r"^(?:City|County|Town|Village|Port)\s+of\b|\bISD\b", re.IGNORECASE)
@@ -215,6 +216,8 @@ def data_center_reason(ab: Abatement, known_entities: set[str]) -> str | None:
         return f"NAICS {', '.join(ab.naics)} (data hosting)"
     if DATA_CENTER_RE.search(ab.zone) or any(DATA_CENTER_RE.search(o) for o in ab.owners):
         return "named as a data center"
+    if COMPUTE_RE.search(ab.zone) or any(COMPUTE_RE.search(o) for o in ab.owners):
+        return "named as a compute facility"
     for owner in ab.owners:
         if find_company(owner) and not dc_company(owner):
             continue

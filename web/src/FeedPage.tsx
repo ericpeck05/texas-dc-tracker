@@ -16,6 +16,7 @@ const TYPES = [
   "approval",
   "grid",
   "sec_mention",
+  "notice",
 ];
 
 export function FeedPage() {

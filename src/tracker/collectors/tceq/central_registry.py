@@ -38,7 +38,19 @@ RN_CHUNK = 40
 DATA_CENTER_WHERE = (
     "starts_with(indus_type_cd_name, '5182') "
     "OR upper(reg_ent_name) like '%DATA CENTER%' OR upper(reg_ent_name) like '%DATACENTER%' "
-    "OR upper(reg_ent_desc_txt) like '%DATA CENTER%' OR upper(princ_name) like '%DATA CENTER%'"
+    "OR upper(reg_ent_desc_txt) like '%DATA CENTER%' OR upper(princ_name) like '%DATA CENTER%' "
+    # Companies that put AI compute inside their own campuses and file under factory names:
+    # only their sites whose name or description says compute.
+    "OR ((upper(princ_name) like '%SPACE EXPLORATION%' OR upper(princ_name) like '%TESLA%' "
+    "OR upper(princ_name) like '%X.AI%' OR upper(princ_name) like '%XAI%') "
+    "AND (upper(reg_ent_name) like '%COMPUT%' OR upper(reg_ent_desc_txt) like '%COMPUT%' "
+    "OR upper(reg_ent_name) like '%CORTEX%' OR upper(reg_ent_name) like '%COLOSSUS%'))"
+)
+# "Super-compute facility", "AI compute campus": a data center by another name.
+COMPUTE_RE = re.compile(
+    r"\bsuper[\s-]?comput\w*|\bcompute\s+(?:facility|campus|center|cluster)\b|"
+    r"\b(?:cortex|colossus)\b",
+    re.IGNORECASE,
 )
 DATA_CENTER_RE = re.compile(r"\bdata\s?cent(?:er|re)s?\b|\bdatacent", re.IGNORECASE)
 # Concrete batch plants and crushers built to supply a data center job carry its name but
@@ -189,6 +201,8 @@ def data_center_reason(ent: RegulatedEntity, known_company) -> str | None:
     if DATA_CENTER_RE.search(text) or DATA_CENTER_RE.search(ent.principal or ""):
         return "named as a data center"
     company = known_company(ent.principal) if ent.principal else None
+    if company and COMPUTE_RE.search(text):
+        return f"named as a compute facility, principal belongs to {company}"
     if (ent.industry or "").startswith("5182") and company:
         return f"industry {ent.industry}, principal belongs to {company}"
     return None

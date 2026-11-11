@@ -30,6 +30,7 @@ const TYPE_LABEL: Record<string, string> = {
   grid: "grid",
   stormwater: "stormwater",
   sec_mention: "SEC",
+  notice: "notice",
 };
 
 export function signalLabel(type: string): string {
