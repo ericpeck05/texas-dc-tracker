@@ -357,3 +357,60 @@ export interface Scoreboard {
 // Where a maker came from: the counting sentence, elsewhere in the same document (the only
 // maker it names), or another document for the same permit.
 export type MakeSource = "sentence" | "document" | "permit" | null;
+
+// Overview: who is building and how fast (GET /api/overview).
+export interface OverviewSite {
+  id: number;
+  name: string;
+  county: string | null;
+  status: string;
+  mw: number;
+  units: number;
+  first: string | null;
+}
+
+export interface OverviewCompany {
+  company: string;
+  ticker: string | null;
+  sites: OverviewSite[];
+  new_12m: number;
+  mw: number;
+  status: Record<string, number>;
+  first: string | null;
+  latest: string | null;
+}
+
+export interface PaceQuarter {
+  quarter: string;
+  new_sites: number;
+  units: number;
+  mw: number;
+  air_permit: number;
+  stormwater: number;
+  incentive: number;
+  grid: number;
+  partial?: boolean;
+}
+
+export interface Overview {
+  disclaimer: string;
+  as_of: string;
+  totals: {
+    sites: number;
+    named: number;
+    new_12m: number;
+    new_prior_12m: number;
+    mw: number;
+    powered_sites: number;
+    units: number;
+    unit_sites: number;
+    status: Record<string, number>;
+  };
+  takeaways: string[];
+  pace: PaceQuarter[];
+  by_year: { year: number; new_sites: number }[];
+  companies: OverviewCompany[];
+  other_names: { entity: string; sites: OverviewSite[] }[];
+  counties: { county: string; sites: number; new_12m: number; mw: number }[];
+  newest: OverviewSite[];
+}

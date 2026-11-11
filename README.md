@@ -13,8 +13,9 @@ Built and running. Seven public sources feed one database, rebuilt from saved sn
 with `tracker db rebuild`: TCEQ air permits (generator and turbine counts, sizes, makes),
 the Comptroller data center registry and Chapter 312 tax abatements, the TCEQ Central
 Registry, PUC dockets, SEC filings, and franchise tax records for owner lookups. The weekly
-refresh collects all of them and reports what changed. The web app has the feed, a map and
-site list, site pages, ticker pages, the supplier scoreboard, and the review queue.
+refresh collects all of them and reports what changed. The web app has an overview (who is
+building and how fast), the feed, a map and site list, site pages, ticker pages, the
+supplier scoreboard, and the review queue.
 
 As of November 2026: 322 sites with filings, 635 filings, 2,118 links. The review queue was
 worked once by Claude (see below); about 210 genuinely unclear items are left for a person.
@@ -223,14 +224,42 @@ move the project, then check with `tracker schedule run-now`.
 
 `tracker serve` runs a JSON API (docs at `/api/docs`) and the React app in `web/`. It is
 read-only except for review decisions (below); keep it on 127.0.0.1.
-The app opens on the **feed** (`/api/feed`): filings newest first by the date on the
+The app opens on the **overview** (`/api/overview`), which sums everything up to answer who is
+building and how fast:
+- Headline counts: sites, new sites in the last 12 months against the 12 before, how many
+  are tied to a named company, and the generators and turbines in air permits.
+- "What stands out": a few plain sentences computed from the data.
+- Pace: new sites per quarter, by the date of each site's first public filing, plus small
+  charts per kind of filing. Each kind is a stage of a build: air permits, stormwater
+  permits, sales-tax exemptions, PUC grid dockets, and permitted units.
+- Who is building: companies ranked by sites, with new sites in the last 12 months, status
+  counts and sized MW. Click a company to list its sites.
+- Other owners, operators and tenants on filings that are not yet traced to a parent.
+- Busiest counties and the newest sites.
+
+Sources reach back unevenly, so the charts start in 2021 and older years look quieter than
+they were. Power is on-site generation from air permits. It is a floor, and it is not the
+IT load.
+
+The **feed** (`#/feed`, `/api/feed`) lists filings newest first by the date on the
 document, each tagged by signal type and linked to its site, with the companies behind the
 site and the generators and turbines that filing lists. Windows of 7, 30, 90, 365 days or
 all (keys `1`-`5`), a signal type filter, and `j`/`k`, `enter` (open site), `d` (open
 document).
 
 **Map + sites** (`#/sites`) puts every located site on a Texas county map, sized by permitted
-MW and colored by status, beside the site table; filters apply to both. Filings rarely give
+MW and colored by status, beside the site table; filters apply to both.
+
+To move around the map:
+- Scroll, pinch or double-click to zoom (shift+double-click zooms out), and drag to pan.
+- Buttons jump to all of Texas, fit the sites the filters show, or go to DFW, Austin, San
+  Antonio, Houston or West Texas.
+- When you zoom in, site and county names appear; a name that would overlap a bigger site's
+  is left off.
+- Dots keep their size on screen, so nearby sites pull apart as you zoom.
+- Hover a dot (or tap it once on a phone) for its status, place, MW and companies.
+
+Filings rarely give
 coordinates, so positions are approximate: a site sits at the city its TCEQ records name
 (Census Gazetteer place point) or, failing that, at its county's center (drawn as a ring).
 A site no filing places, but whose own name holds a Texas place ("Riot Rockdale", "Bexar 1",
@@ -374,6 +403,7 @@ src/tracker/
   views/ticker.py        ticker page data: demand-side sites, supplied equipment
   views/sites.py         site list and site page: owner chain, timeline, equipment
   views/feed.py          feed: filings newest first with site, companies, equipment
+  views/insights.py      overview: who is building, pace by quarter, counties
   views/suppliers.py     supplier scoreboard: units by manufacturer and quarter
   locate.py              approximate site positions (city point, county center, or a place
                          in the site's name)
