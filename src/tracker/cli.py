@@ -3,25 +3,51 @@
 from __future__ import annotations
 
 import logging
+import sqlite3
 from collections import defaultdict
+from datetime import date
 from pathlib import Path
 from typing import Annotated
 
 import typer
-from sqlalchemy import select
+from sqlalchemy import func, select
 
+from tracker import jobs
+from tracker.collectors.comptroller.abatements import SOURCE as ABATEMENT_SOURCE
+from tracker.collectors.comptroller.data_center_registry import SOURCE as REGISTRY_SOURCE
+from tracker.collectors.comptroller.franchise_tax import SOURCE as FRANCHISE_SOURCE
+from tracker.collectors.comptroller.franchise_tax import (
+    Lookup,
+)
+from tracker.collectors.puc.interchange import SOURCE as PUC_SOURCE
+from tracker.collectors.sec.edgar import SOURCE as SEC_SOURCE
 from tracker.collectors.tceq.air_permits import Fetched, fetch_seeds, read_seeds
-from tracker.config import PILOT_COUNTIES, get_settings
-from tracker.db.models import Equipment, Site
+from tracker.collectors.tceq.central_registry import SOURCE as CR_SOURCE
+from tracker.collectors.tceq.records_online import DEFAULT_KEYWORDS
+from tracker.config import get_settings
+from tracker.db.models import Equipment, LinkType, Signal, Site
 from tracker.db.session import init_db, make_engine, session_scope
+from tracker.entities import site_companies, site_entities
 from tracker.http import PoliteClient
 from tracker.ingest import IngestResult, ingest_tceq_air
+from tracker.jobs import report_line
+from tracker.owners import (
+    apply_findings,
+    owner_queue,
+    read_findings,
+)
+from tracker.review import apply_decisions, read_decisions
+from tracker.rollup import site_inventory
 
 app = typer.Typer(help="Texas data center tracker.", no_args_is_help=True)
 db_app = typer.Typer(help="Database commands.", no_args_is_help=True)
 pull_app = typer.Typer(help="Collect documents from a source.", no_args_is_help=True)
+discover_app = typer.Typer(help="Find new documents automatically.", no_args_is_help=True)
 app.add_typer(db_app, name="db")
 app.add_typer(pull_app, name="pull")
+owners_app = typer.Typer(help="Find who is behind the LLCs on filings.", no_args_is_help=True)
+app.add_typer(discover_app, name="discover")
+app.add_typer(owners_app, name="owners")
 
 
 def _engine():
@@ -31,14 +57,7 @@ def _engine():
 
 
 def _report(result: IngestResult, label: str) -> None:
-    if not result.created:
-        typer.echo(f"  skip  {label} (already ingested)")
-        return
-    eq = result.signal.equipment
-    site = result.site.name if result.site else "no RN, unmatched"
-    county = result.site.county if result.site else None
-    flag = "" if county is None or county in PILOT_COUNTIES else f"  [outside pilot: {county}]"
-    typer.echo(f"  ok    {label}: {len(eq)} equipment rows, site: {site}{flag}")
+    typer.echo(report_line(result, label))
 
 
 @db_app.command("init")
@@ -46,6 +65,104 @@ def db_init() -> None:
     """Create the database tables."""
     _engine()
     typer.echo(f"Database ready at {get_settings().db_url}")
+
+
+@db_app.command("rebuild")
+def db_rebuild() -> None:
+    """Re-extract every saved document into a fresh database (no downloads).
+
+    Use after an extractor or schema change. The old database is kept as tracker.db.bak.
+    """
+    settings = get_settings()
+    if not settings.db_url.startswith("sqlite:///"):
+        typer.echo("rebuild only supports the default SQLite database", err=True)
+        raise typer.Exit(1)
+    path = Path(settings.db_url.removeprefix("sqlite:///"))
+    if not path.exists():
+        typer.echo(f"No database at {path}; nothing to rebuild.")
+        return
+    with sqlite3.connect(path) as old:
+        cols = {row[1] for row in old.execute("PRAGMA table_info(document)")}
+        hint = "listed_site_name" if "listed_site_name" in cols else "NULL"
+        docs = old.execute(
+            f"SELECT url, local_path, content_type, {hint}, source FROM document ORDER BY id"
+        ).fetchall()
+    backup = path.with_name(path.name + ".bak")
+    path.replace(backup)
+    engine = _engine()
+    typer.echo(f"Rebuilding from {len(docs)} saved documents (old database: {backup})")
+    # Registry snapshots after TCEQ documents, so they match against every TCEQ site as on a
+    # live pull; abatements, the TCEQ Central Registry, and PUC dockets after both, since they
+    # match on the entities those create; then owner lookups, which need every entity.
+    order = {
+        REGISTRY_SOURCE: 1,
+        ABATEMENT_SOURCE: 2,
+        CR_SOURCE: 3,
+        PUC_SOURCE: 4,
+        SEC_SOURCE: 5,
+        FRANCHISE_SOURCE: 6,
+    }
+    docs.sort(key=lambda d: order.get(d[4], 0))
+    for url, local_path, content_type, site_hint, source in docs:
+        raw = Path(local_path)
+        if not raw.exists():
+            typer.echo(f"  MISSING  {raw} ({url})")
+            continue
+        if source == REGISTRY_SOURCE:
+            with session_scope(engine) as session:
+                report, entries = jobs.import_registry_page(
+                    session, settings, raw.read_bytes(), content_type
+                )
+            typer.echo(f"  registry  {len(entries)} entries, {len(report.new)} new ({raw.name})")
+            continue
+        if source == ABATEMENT_SOURCE:
+            with session_scope(engine) as session:
+                ab = jobs.import_abatement_file(session, settings, raw.read_bytes())
+            typer.echo(f"  abatements  {ab.data_centers} data centers, {len(ab.new)} new")
+            continue
+        if source == CR_SOURCE:
+            with session_scope(engine) as session:
+                cr_report = jobs.import_central_registry_file(session, settings, raw.read_bytes())
+            typer.echo(
+                f"  central registry  {cr_report.data_centers} data centers, "
+                f"{cr_report.new_signals} new signals"
+            )
+            continue
+        if source == PUC_SOURCE:
+            with session_scope(engine) as session:
+                puc_report = jobs.import_puc_file(session, settings, raw.read_bytes())
+            typer.echo(f"  puc  {puc_report.dockets} dockets, {puc_report.new_signals} new signals")
+            continue
+        if source == SEC_SOURCE:
+            with session_scope(engine) as session:
+                sec_report = jobs.import_sec_file(session, settings, raw.read_bytes())
+            typer.echo(f"  sec  {sec_report.hits} mentions, {sec_report.new_signals} new signals")
+            continue
+        if source == FRANCHISE_SOURCE:
+            with session_scope(engine) as session:
+                jobs.store_lookup(session, settings, Lookup.from_bytes(raw.read_bytes()))
+            continue
+        with session_scope(engine) as session:
+            result = ingest_tceq_air(
+                session,
+                raw.read_bytes(),
+                raw_dir=settings.raw_dir,
+                url=url,
+                filename=None if url else raw.name,
+                content_type=content_type,
+                site_name_hint=site_hint,
+            )
+            _report(result, url or raw.name)
+    with session_scope(engine) as session:
+        missing = apply_findings(session, read_findings())
+    for name in missing:
+        typer.echo(f"  owner finding for unknown entity: {name}")
+    with session_scope(engine) as session:
+        decisions = read_decisions()
+        stale = apply_decisions(session, decisions)
+    typer.echo(f"  review decisions  {len(decisions) - len(stale)} of {len(decisions)} replayed")
+    for line in stale:
+        typer.echo(f"  review decision no longer matches a link: {line}")
 
 
 @pull_app.command("tceq")
@@ -83,6 +200,87 @@ def pull_tceq(
         raise typer.Exit(1)
 
 
+@pull_app.command("comptroller")
+def pull_comptroller(
+    page: Annotated[
+        Path | None, typer.Option(help="Parse a saved copy of the page instead of fetching.")
+    ] = None,
+) -> None:
+    """Pull the Comptroller's registry of data centers certified for the sales tax exemption."""
+    content = page.read_bytes() if page is not None else None
+    jobs.pull_registry(get_settings(), _engine(), typer.echo, content=content)
+
+
+@pull_app.command("abatements")
+def pull_abatements(
+    csv_file: Annotated[
+        Path | None, typer.Option("--file", help="Import a saved copy of the CSV instead.")
+    ] = None,
+) -> None:
+    """Pull the Comptroller's Chapter 312 tax abatement agreements and keep data centers."""
+    content = csv_file.read_bytes() if csv_file is not None else None
+    jobs.pull_abatements(get_settings(), _engine(), typer.echo, content=content)
+
+
+@pull_app.command("tceq-registry")
+def pull_tceq_registry(
+    snapshot: Annotated[
+        Path | None, typer.Option("--file", help="Import a saved snapshot instead.")
+    ] = None,
+) -> None:
+    """Pull data center sites from the TCEQ Central Registry: RNs, stormwater, air IDs."""
+    content = snapshot.read_bytes() if snapshot is not None else None
+    jobs.pull_central_registry(get_settings(), _engine(), typer.echo, content=content)
+
+
+@pull_app.command("puc")
+def pull_puc(
+    snapshot: Annotated[
+        Path | None, typer.Option("--file", help="Import a saved snapshot instead.")
+    ] = None,
+) -> None:
+    """Pull data center dockets from the Texas PUC (grid signals)."""
+    content = snapshot.read_bytes() if snapshot is not None else None
+    jobs.pull_puc(get_settings(), _engine(), typer.echo, content=content)
+
+
+@pull_app.command("sec")
+def pull_sec(
+    snapshot: Annotated[
+        Path | None, typer.Option("--file", help="Import a saved snapshot instead.")
+    ] = None,
+) -> None:
+    """Search SEC filings for tracked site names (needs TRACKER_SEC_CONTACT in .env)."""
+    content = snapshot.read_bytes() if snapshot is not None else None
+    jobs.pull_sec(get_settings(), _engine(), typer.echo, content=content)
+
+
+@discover_app.command("tceq")
+def discover_tceq(
+    keyword: Annotated[
+        list[str] | None,
+        typer.Option("--keyword", "-k", help="Site-name keyword (repeatable)."),
+    ] = None,
+    since: Annotated[
+        str, typer.Option(help="Skip permits with no documents on or after this date.")
+    ] = "2022-01-01",
+    max_permits: Annotated[int, typer.Option(help="Stop after N permits (0 = all).")] = 0,
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="List what would be fetched; download nothing.")
+    ] = False,
+) -> None:
+    """Search TCEQ Records Online for data center permits and ingest their key documents."""
+    jobs.discover_tceq(
+        get_settings(),
+        _engine(),
+        typer.echo,
+        keywords=tuple(keyword) if keyword else DEFAULT_KEYWORDS,
+        since=date.fromisoformat(since),
+        max_permits=max_permits,
+        dry_run=dry_run,
+    )
+
+
 @app.command("ingest")
 def ingest(
     files: Annotated[list[Path], typer.Argument(exists=True, dir_okay=False)],
@@ -98,26 +296,352 @@ def ingest(
             _report(result, path.name)
 
 
+def _equipment_line(e: Equipment, size_from: Equipment | None = None) -> str:
+    src = size_from or e
+    size = f"{src.unit_size:g} {src.unit}" if src.unit_size else "size ?"
+    if size_from is not None:
+        size += "*"
+    make = " ".join(x for x in (e.manufacturer, e.model) if x) or "make ?"
+    return f"  {e.count:>4} x {e.category:<17} {size:<12} {make}  (p.{e.page}, {e.method})"
+
+
 @app.command("equipment")
-def equipment() -> None:
-    """Show generator and turbine counts per site."""
+def equipment(
+    all_rows: Annotated[
+        bool, typer.Option("--all", help="Every row from every document, not just current.")
+    ] = False,
+) -> None:
+    """Show current generator and turbine counts per site, counting each unit once."""
     engine = _engine()
     with session_scope(engine) as session:
-        rows = session.execute(
-            select(Site.name, Site.county, Equipment).join(Equipment, Equipment.site_id == Site.id)
-        ).all()
-        if not rows:
-            typer.echo("No equipment yet. Run `tracker ingest` or `tracker pull tceq`.")
+        if all_rows:
+            rows = session.execute(
+                select(Site.name, Site.county, Equipment).join(
+                    Equipment, Equipment.site_id == Site.id
+                )
+            ).all()
+            by_site: dict[tuple[str, str | None], list[Equipment]] = defaultdict(list)
+            for name, county, eq in rows:
+                by_site[(name, county)].append(eq)
+            for (name, county), items in sorted(by_site.items()):
+                typer.echo(f"{name} ({county or '?'} County)")
+                for e in items:
+                    typer.echo(_equipment_line(e))
             return
-        by_site: dict[tuple[str, str | None], list[Equipment]] = defaultdict(list)
-        for name, county, eq in rows:
-            by_site[(name, county)].append(eq)
-        for (name, county), items in sorted(by_site.items()):
-            typer.echo(f"{name} ({county or '?'} County)")
-            for e in items:
-                size = f"{e.unit_size:g} {e.unit}" if e.unit_size else "size ?"
-                make = " ".join(x for x in (e.manufacturer, e.model) if x) or "make ?"
-                typer.echo(f"  {e.count:>4} x {e.category:<17} {size:<12} {make}  (p.{e.page})")
+
+        found = False
+        for site in session.scalars(select(Site).order_by(Site.county, Site.name)):
+            inv = site_inventory(session, site)
+            if not inv.permits and not inv.withdrawn_permits:
+                continue
+            found = True
+            typer.echo(f"{site.name} ({site.county or '?'} County)")
+            for p in inv.permits:
+                when = p.signal.filing_date.isoformat() if p.signal.filing_date else "date ?"
+                others = (
+                    f", {p.other_documents} other docs not counted" if p.other_documents else ""
+                )
+                typer.echo(f" permit {p.permit_number or '?'}: from {when} document{others}")
+                for e in p.rows:
+                    mark = {1: "+", -1: "-", 0: " "}[p.sign(e)]
+                    line = _equipment_line(e, p.borrowed_sizes.get(e.id))
+                    typer.echo(f"{mark}{line[1:]}  [{e.role or 'unknown'}]")
+                if p.borrowed_sizes:
+                    dates = {
+                        b.signal.filing_date.isoformat() if b.signal.filing_date else "?"
+                        for b in p.borrowed_sizes.values()
+                    }
+                    typer.echo(f"   * size from this permit's {', '.join(sorted(dates))} document")
+            for permit_number in inv.withdrawn_permits:
+                typer.echo(f" permit {permit_number}: application withdrawn, not counted")
+            for category, t in sorted(inv.totals().items()):
+                mw = f", {t['mw']:,.1f} MW" if t["mw"] else ""
+                typer.echo(f" total {category}: {t['count']:g} units{mw}")
+        if not found:
+            typer.echo("No equipment yet. Run `tracker ingest` or `tracker pull tceq`.")
+
+
+ROLE_LABEL = {LinkType.FILED_BY: "permit holder"}
+
+
+@app.command("sites")
+def sites(
+    linked: Annotated[
+        bool, typer.Option("--linked", help="Only sites with two or more kinds of signal.")
+    ] = False,
+) -> None:
+    """List sites: sources, permits, equipment rows, companies, and NSR permits to fetch."""
+    engine = _engine()
+    with session_scope(engine) as session:
+        all_sites = session.scalars(select(Site).order_by(Site.county, Site.name)).all()
+        if not all_sites:
+            typer.echo("No sites yet. Run `tracker ingest` or `tracker pull tceq`.")
+            return
+        shown = 0
+        for site in all_sites:
+            signals = session.scalars(select(Signal).where(Signal.site_id == site.id)).all()
+            kinds = sorted({str(s.type) for s in signals})
+            if linked and len(kinds) < 2:
+                continue
+            shown += 1
+            permits = sorted({s.permit_number for s in signals if s.permit_number})
+            n_equipment = session.scalar(
+                select(func.count()).select_from(Equipment).where(Equipment.site_id == site.id)
+            )
+            groups: set[str] = set()
+            nsr: set[str] = set()
+            for sig in signals:
+                for ex in sig.extractions:
+                    groups.update(g["unit_id"] for g in ex.fields.get("unit_groups", []))
+                    nsr.update(a["number"] for a in ex.fields.get("nsr_authorizations", []))
+            rns = ", ".join(site.tceq_rns) or "no RN"
+            typer.echo(f"{site.name} ({site.county or '?'} County) [{site.status}] {rns}")
+            typer.echo(f"  permits: {', '.join(permits) or '-'}   equipment rows: {n_equipment}")
+            if groups:
+                typer.echo(f"  unit groups (counts unknown): {', '.join(sorted(groups))}")
+            if nsr:
+                typer.echo(f"  NSR permits referenced: {', '.join(sorted(nsr))}")
+            typer.echo(f"  signals: {', '.join(kinds) or '-'}")
+            holders = [
+                f"{name} [{conf}]"
+                for role, name, conf in site_entities(session, site)
+                if role == LinkType.FILED_BY
+            ]
+            if holders:
+                typer.echo(f"  permit holders: {'; '.join(holders)}")
+            companies = site_companies(session, site)
+            if companies:
+                parts = [
+                    f"{ROLE_LABEL.get(role, role)} {name}"
+                    + (f" ({ticker})" if ticker else "")
+                    + f" [{conf}]"
+                    for role, name, ticker, conf in companies
+                ]
+                typer.echo(f"  companies: {'; '.join(parts)}")
+        if linked:
+            typer.echo(f"{shown} sites with two or more kinds of signal")
+
+
+@owners_app.command("lookup")
+def owners_lookup(
+    refresh: Annotated[bool, typer.Option(help="Look up names already looked up.")] = False,
+    max_names: Annotated[int, typer.Option(help="Stop after this many name lookups.")] = 100,
+) -> None:
+    """Look up permit holders and registry parties in the franchise tax file (free, official).
+
+    Then look up who else uses each one's mailing address, to find sister LLCs.
+    """
+    jobs.lookup_owners(get_settings(), _engine(), typer.echo, refresh=refresh, max_names=max_names)
+
+
+@owners_app.command("queue")
+def owners_queue(
+    all_items: Annotated[
+        bool, typer.Option("--all", help="Include entities with a medium company link.")
+    ] = False,
+    csv_path: Annotated[
+        Path | None, typer.Option("--csv", help="Also write the queue to this CSV file.")
+    ] = None,
+) -> None:
+    """Entities on sites with no confirmed company, what is known, and the next hand step.
+
+    Sites with an air permit come first, then entities on the most sites."""
+    engine = _engine()
+    with session_scope(engine) as session:
+        items = owner_queue(session)
+        if csv_path is not None:
+            _write_queue_csv(csv_path, items, all_items)
+        shown = 0
+        for item in items:
+            if item.company_confidence is not None and not all_items:
+                continue
+            shown += 1
+            e = item.entity
+            sites = "; ".join(s.name for s in item.sites)
+            typer.echo(f"{e.legal_name}  [{item.status}]")
+            typer.echo(f"  sites: {sites}")
+            if e.taxpayer_number:
+                formed = e.formation_date.isoformat() if e.formation_date else "?"
+                office = "  (registered agent office)" if item.agent_office else ""
+                typer.echo(f"  SOS file {e.sos_file_number}, formed {formed}, {e.address}{office}")
+            for name, conf in item.affiliates:
+                typer.echo(f"  same address: {name} [{conf}]")
+            typer.echo(f"  next: {item.next_step}")
+        typer.echo(f"{shown} entities without a known company")
+
+
+def _write_queue_csv(path: Path, items, all_items: bool) -> None:
+    import csv
+
+    with path.open("w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(
+            [
+                "entity",
+                "status",
+                "air_permit",
+                "sites",
+                "sos_file_number",
+                "formed",
+                "address",
+                "agent_office",
+                "same_address",
+                "next_step",
+            ]
+        )
+        for i in items:
+            if i.company_confidence is not None and not all_items:
+                continue
+            e = i.entity
+            w.writerow(
+                [
+                    e.legal_name,
+                    i.status,
+                    i.has_air_permit,
+                    "; ".join(s.name for s in i.sites),
+                    e.sos_file_number or "",
+                    e.formation_date or "",
+                    e.address or "",
+                    i.agent_office,
+                    "; ".join(f"{n} [{c}]" for n, c in i.affiliates),
+                    i.next_step,
+                ]
+            )
+    typer.echo(f"Wrote {path}")
+
+
+@owners_app.command("apply")
+def owners_apply() -> None:
+    """Apply hand-researched owners from seeds/owner_findings.csv."""
+    engine = _engine()
+    findings = read_findings()
+    with session_scope(engine) as session:
+        missing = apply_findings(session, findings)
+    typer.echo(f"{len(findings)} findings applied")
+    for name in missing:
+        typer.echo(f"  no entity named {name!r}")
+
+
+@app.command("serve")
+def serve(
+    port: Annotated[int, typer.Option(help="Port to listen on.")] = 8000,
+    host: Annotated[str, typer.Option(help="Interface; keep 127.0.0.1 unless you mean it.")] = (
+        "127.0.0.1"
+    ),
+) -> None:
+    """Serve the JSON API and the built web app (web/dist) at http://127.0.0.1:8000."""
+    import uvicorn
+
+    from tracker.api import create_app
+
+    uvicorn.run(create_app(), host=host, port=port)
+
+
+@app.command("ticker")
+def ticker(symbol: str) -> None:
+    """Sites and supplied equipment for one ticker, e.g. `tracker ticker ORCL`."""
+    from tracker.views.ticker import ticker_view
+
+    with session_scope(_engine()) as session:
+        view = ticker_view(session, symbol)
+    if view is None:
+        typer.echo(f"No company or supplier with ticker {symbol.upper()}", err=True)
+        raise typer.Exit(1)
+    d, s = view["demand"], view["supply"]
+    typer.echo(f"{view['symbol']} ({view['exchange']}): {', '.join(view['names'])}")
+    t = d["totals"]
+    typer.echo(
+        f"  demand: {t['sites']} sites ({t['high_confidence_sites']} high confidence), "
+        f"{t['generators']} generators, {t['turbines']} turbines, {t['mw']} MW"
+    )
+    for site in d["sites"]:
+        roles = ", ".join(sorted({x["role"] for x in site["ties"]}))
+        p = site["power"]
+        typer.echo(
+            f"    [{site['confidence']}] {site['name']} ({site['county'] or '?'}): {roles}; "
+            f"{p['generators']} gen, {p['turbines']} turb, {p['mw']} MW"
+        )
+    for site in d["leads"]:
+        typer.echo(f"    [lead] {site['name']}")
+    t = s["totals"]
+    if s["makers"]:
+        typer.echo(
+            f"  supply ({', '.join(s['makers'])}): {t['generators']} generators, "
+            f"{t['turbines']} turbines, {t['mw']} MW"
+        )
+        for site in s["sites"]:
+            typer.echo(
+                f"    {site['name']}: {site['generators']} gen, {site['turbines']} turb, "
+                f"{site['mw']} MW"
+            )
+    typer.echo("Not investment advice.")
+
+
+@app.command("refresh")
+def refresh() -> None:
+    """Run every collector, then write a report of what changed (data/refresh/latest.md).
+
+    Exits with status 1 if a health check fails, e.g. a source returned nothing."""
+    from tracker.refresh import run_refresh
+
+    report, path = run_refresh(get_settings(), _engine(), typer.echo)
+    typer.echo("")
+    typer.echo(path.read_text())
+    if report.failed:
+        raise typer.Exit(1)
+
+
+schedule_app = typer.Typer(help="Weekly refresh with launchd (macOS).", no_args_is_help=True)
+app.add_typer(schedule_app, name="schedule")
+
+
+@schedule_app.command("install")
+def schedule_install(
+    day: Annotated[str, typer.Option(help="Day of week: sun, mon, ... sat.")] = "mon",
+    at: Annotated[str, typer.Option(help="Local time, HH:MM.")] = "06:00",
+) -> None:
+    """Install and load a LaunchAgent that runs `tracker refresh` once a week."""
+    from tracker import schedule
+
+    hour, minute = (int(x) for x in at.split(":"))
+    if folder := schedule.protected_folder():
+        typer.echo(
+            f"Note: the project is in ~/{folder}, which macOS keeps from background jobs. "
+            "Grant uv access (System Settings > Privacy & Security > Full Disk Access), "
+            "or move the project, or the weekly run will fail to read it."
+        )
+    path = schedule.install(schedule.DAYS[day.lower()[:3]], hour, minute)
+    typer.echo(f"Installed {path}: every {day} at {at}. Log: data/refresh/launchd.log")
+
+
+@schedule_app.command("uninstall")
+def schedule_uninstall() -> None:
+    """Unload and remove the LaunchAgent."""
+    from tracker import schedule
+
+    typer.echo("Removed." if schedule.uninstall() else "Not installed.")
+
+
+@schedule_app.command("status")
+def schedule_status() -> None:
+    """Whether the weekly job is loaded, and the last refresh report."""
+    from tracker import schedule
+
+    settings = get_settings()
+    typer.echo(
+        f"LaunchAgent {schedule.PLIST_PATH}: {'loaded' if schedule.is_loaded() else 'not loaded'}"
+    )
+    latest = settings.data_dir / "refresh" / "latest.md"
+    typer.echo(latest.read_text() if latest.exists() else "No refresh has run yet.")
+
+
+@schedule_app.command("run-now")
+def schedule_run_now() -> None:
+    """Start the scheduled job now, in launchd's environment (checks permissions)."""
+    from tracker import schedule
+
+    schedule.run_now()
+    typer.echo("Started. Follow data/refresh/launchd.log")
 
 
 def main() -> None:

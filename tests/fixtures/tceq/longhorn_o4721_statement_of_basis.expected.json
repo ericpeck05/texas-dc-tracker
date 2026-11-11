@@ -1,0 +1,15 @@
+{
+  "source_url": "https://www.tceq.texas.gov/assets/public/permitting/air/publicnotice/37589sob.pdf",
+  "note": "Title V Statement of Basis, Longhorn Data Center (Stargate Abilene). Lists unit groups and their rules but no unit counts, so no equipment rows are expected. Counts should come from NSR authorization 177263.",
+  "document_kind": "title_v_statement_of_basis",
+  "rn": null,
+  "permit_number": "O4721",
+  "county": "Taylor",
+  "site_name": "Longhorn Data Center",
+  "applicant": "Abilene Data Center Campus Master Association",
+  "nsr_authorizations": [{"number": "177263", "issued": "2025-01-22"}],
+  "permits_by_rule": ["106.472", "106.511"],
+  "unit_groups": ["GRP-FLOATTNK", "GRP-GEN1", "GRP-GEN2", "GRP-GEN3", "GRP-GEN4", "GRP-GEN5",
+                  "GRP-GEN6", "GRP-GEN7", "GRP-TANKS", "GRP-TURB1", "GRP-TURB2"],
+  "equipment": []
+}

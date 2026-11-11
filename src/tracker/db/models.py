@@ -76,6 +76,7 @@ class RecordType(StrEnum):
 class LinkType(StrEnum):
     OWNS = "owns"
     OCCUPIES = "occupies"
+    OPERATES = "operates"
     DEVELOPS = "develops"
     FILED_BY = "filed_by"
     PARENT_OF = "parent_of"
@@ -88,9 +89,11 @@ class LinkMethod(StrEnum):
     FILING = "filing"
     ADDRESS_MATCH = "address_match"
     AGENT_MATCH = "agent_match"
+    NAME_MATCH = "name_match"  # same legal or project name in two filings
     NEWS = "news"
     LLM = "llm"
     MANUAL = "manual"
+    CLAUDE_REVIEW = "claude_review"  # confirmed in review by Claude, not a person
 
 
 class Confidence(StrEnum):
@@ -187,6 +190,8 @@ class Document(Base):
     local_path: Mapped[str] = mapped_column(Text)
     content_type: Mapped[str | None] = mapped_column(String(128))
     size_bytes: Mapped[int] = mapped_column(Integer)
+    # Site name in the listing the document was found through (Records Online search).
+    listed_site_name: Mapped[str | None] = mapped_column(String(300))
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     signals: Mapped[list[Signal]] = relationship(back_populates="document")
@@ -240,12 +245,20 @@ class Equipment(Base):
     category: Mapped[EquipmentCategory] = mapped_column(_enum(EquipmentCategory))
     count: Mapped[int] = mapped_column(Integer)
     unit_size: Mapped[float | None] = mapped_column(Float)
-    unit: Mapped[str | None] = mapped_column(String(16))  # kW, MW, hp, gal
+    unit: Mapped[str | None] = mapped_column(String(16))  # kW, MW, hp, gal, bbl
     fuel: Mapped[str | None] = mapped_column(String(32))
     manufacturer: Mapped[str | None] = mapped_column(String(128))
     model: Mapped[str | None] = mapped_column(String(128))
     page: Mapped[int | None] = mapped_column(Integer)  # 1-based page in the source document
     snippet: Mapped[str | None] = mapped_column(Text)  # the sentence the numbers came from
+    # prose, count_change, or maert (one row per unit in the emission rates table)
+    method: Mapped[str | None] = mapped_column(String(32))
+    # total, existing, added, removed, or unknown: what the sentence says about these units
+    role: Mapped[str | None] = mapped_column(String(16))
+    epns: Mapped[str | None] = mapped_column(String(64))  # unit labels, e.g. GEN-1..GEN-3
+    # sentence (named with the units), document (the only maker the document names), or
+    # permit (named in another document for the same permit; set by rollup, not stored)
+    make_source: Mapped[str | None] = mapped_column(String(16))
 
     signal: Mapped[Signal] = relationship(back_populates="equipment")
     site: Mapped[Site | None] = relationship(back_populates="equipment")
@@ -268,6 +281,7 @@ class Entity(Base):
     registered_agent: Mapped[str | None] = mapped_column(String(300))
     address: Mapped[str | None] = mapped_column(Text)
     sos_file_number: Mapped[str | None] = mapped_column(String(32), index=True)
+    taxpayer_number: Mapped[str | None] = mapped_column(String(16), index=True)
     officers: Mapped[list[Any]] = mapped_column(default=list)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
@@ -321,3 +335,23 @@ class Link(Base):
     evidence_url: Mapped[str | None] = mapped_column(Text)
     note: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class ReviewDecision(Base):
+    """A person's call on a low-confidence link: confirmed or rejected.
+
+    A confirm also adds a Link with method=manual. A reject hides the low link everywhere.
+    Every decision is mirrored to seeds/review_decisions.csv so a rebuild replays it.
+    """
+
+    __tablename__ = "review_decision"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    link_id: Mapped[int] = mapped_column(ForeignKey("link.id"), unique=True)
+    decision: Mapped[str] = mapped_column(String(16))  # confirm | reject
+    decided_by: Mapped[str] = mapped_column(String(16), default="person")  # person | claude
+    note: Mapped[str | None] = mapped_column(Text)
+    manual_link_id: Mapped[int | None] = mapped_column(ForeignKey("link.id"))
+    merged_site_id: Mapped[int | None] = mapped_column(Integer)  # emptied by a merge
+    kept_site_id: Mapped[int | None] = mapped_column(Integer)
+    decided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

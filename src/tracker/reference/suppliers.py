@@ -26,19 +26,44 @@ def _ci(p: str) -> re.Pattern[str]:
 SUPPLIERS: tuple[Supplier, ...] = (
     Supplier(
         "Solar Turbines",
-        _ci(r"\bSolar\s+(?:Turbines\b|(?=Titan|Taurus|Mars|Centaur|Mercury))"),
+        # "Solar Titan 130", or a bare model family with its number ("Titan 350"), which
+        # matches zero-width so the model is read from the family name onward.
+        re.compile(
+            r"\b(?:Solar\s+(?:Turbines\b|(?=Titan|Taurus|Mars|Centaur|Mercury))"
+            r"|(?=(?:Titan|Taurus|Mars|Centaur|Mercury)\s+\d{2,3}\b))",
+            re.IGNORECASE,
+        ),
         "CAT",
         "NYSE",
         parent="Caterpillar",
     ),
     Supplier("Perkins", _ci(r"\bPerkins\b"), "CAT", "NYSE", parent="Caterpillar"),
-    Supplier("Caterpillar", re.compile(r"\b(?:Caterpillar|CATERPILLAR|Cat®|CAT)\b"), "CAT", "NYSE"),
-    Supplier("Cummins", _ci(r"\bCummins\b"), "CMI", "NYSE"),
+    # Model families that only one maker sells also identify it ("G3520K", "QSK50-G5",
+    # "TM2500"); these match zero-width so the model is read from the family name onward.
     Supplier(
-        "GE Vernova", re.compile(r"\b(?:GE\s+Vernova|General\s+Electric|GE)\b"), "GEV", "NYSE"
+        "Caterpillar",
+        re.compile(r"\b(?:Caterpillar|CATERPILLAR|Cat®|CAT)\b|\b(?=(?:G3[45]\d\d[A-Z]?|C175)\b)"),
+        "CAT",
+        "NYSE",
+    ),
+    Supplier(
+        "Cummins", re.compile(r"\b(?:Cummins|CUMMINS)\b|\b(?=(?:QSK|QSX|HSK)\d{2})"), "CMI", "NYSE"
+    ),
+    Supplier(
+        "GE Vernova",
+        re.compile(
+            r"\b(?:GE\s+Vernova|General\s+Electric|GE)\b|\b(?=(?:LM2500|LM6000|LMS100|TM2500))"
+        ),
+        "GEV",
+        "NYSE",
     ),
     Supplier("Generac", _ci(r"\bGenerac\b"), "GNRC", "NYSE"),
-    Supplier("Rolls-Royce (mtu)", re.compile(r"\b(?:Rolls[- ]Royce|MTU|mtu)\b"), "RR.", "LSE"),
+    Supplier(
+        "Rolls-Royce (mtu)",
+        re.compile(r"\b(?:Rolls[- ]Royce|MTU|mtu)\b|\b(?=\d{2}V4000\b)"),
+        "RR.",
+        "LSE",
+    ),
     Supplier("Kohler / Rehlko", _ci(r"\b(?:Kohler|Rehlko)\b"), None, None),
     Supplier("Siemens Energy", _ci(r"\bSiemens(?:\s+Energy)?\b"), "ENR", "XETRA"),
     Supplier(
@@ -57,7 +82,15 @@ SUPPLIERS: tuple[Supplier, ...] = (
         None,
         parent="Volkswagen",
     ),
+    Supplier(
+        "Bergen Engines",
+        re.compile(r"\bBergen(?=\s+(?:Engines\b|B3\d))"),
+        None,
+        None,
+        parent="Langley Holdings",
+    ),
     Supplier("Kawasaki", _ci(r"\bKawasaki\b"), "7012", "TSE"),
+    Supplier("Baudouin", _ci(r"\bBaudouin\b"), "2338", "HKEX", parent="Weichai Power"),
 )
 
 
