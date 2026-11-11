@@ -248,7 +248,18 @@ all (keys `1`-`5`), a signal type filter, and `j`/`k`, `enter` (open site), `d` 
 document).
 
 **Map + sites** (`#/sites`) puts every located site on a Texas county map, sized by permitted
-MW and colored by status, beside the site table; filters apply to both. Filings rarely give
+MW and colored by status, beside the site table; filters apply to both.
+
+To move around the map:
+- Scroll, pinch or double-click to zoom (shift+double-click zooms out), and drag to pan.
+- Buttons jump to all of Texas, fit the sites the filters show, or go to DFW, Austin, San
+  Antonio, Houston or West Texas.
+- When you zoom in, site and county names appear; a name that would overlap a bigger site's
+  is left off.
+- Dots keep their size on screen, so nearby sites pull apart as you zoom.
+- Hover a dot (or tap it once on a phone) for its status, place, MW and companies.
+
+Filings rarely give
 coordinates, so positions are approximate: a site sits at the city its TCEQ records name
 (Census Gazetteer place point) or, failing that, at its county's center (drawn as a ring).
 A site no filing places, but whose own name holds a Texas place ("Riot Rockdale", "Bexar 1",

@@ -440,11 +440,6 @@ kbd {
   margin: 0;
   max-width: 760px;
 }
-.site-map > svg {
-  width: 100%;
-  height: auto;
-  display: block;
-}
 .counties path {
   fill: var(--panel);
   stroke: var(--line);
@@ -470,17 +465,81 @@ kbd {
   stroke-width: 3;
   fill-opacity: 1;
 }
-.map-tip rect {
-  fill: #000;
-  stroke: var(--dim);
+.map-frame {
+  position: relative;
+  border: 1px solid var(--line);
+  overflow: hidden;
 }
-.map-tip text {
+.map-frame svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+.map-frame svg:active {
+  cursor: grabbing;
+}
+.map-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.map-tools button {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+  font: 12px var(--mono);
+  padding: 3px 8px;
+  cursor: pointer;
+  min-width: 28px;
+}
+.map-tools button:hover {
+  border-color: var(--dim);
+}
+.map-areas {
+  display: contents;
+}
+.map-areas button {
+  color: var(--dim);
+}
+.county-labels text {
+  fill: var(--faint);
+  font-family: var(--sans);
+  pointer-events: none;
+}
+.site-labels text {
   fill: var(--text);
-  font: 20px var(--sans);
+  font-family: var(--sans);
+  paint-order: stroke;
+  stroke: #000;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
 }
-.map-tip text.dim {
-  fill: var(--dim);
-  font-size: 17px;
+.map-tip {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 14px));
+  background: #000;
+  border: 1px solid var(--dim);
+  padding: 6px 9px;
+  font-size: 12px;
+  max-width: 300px;
+  pointer-events: none;
+  z-index: 2;
+}
+.map-tip.below {
+  transform: translate(-50%, 14px);
+}
+.map-zoom {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  font-size: 10px;
+  pointer-events: none;
 }
 .legend {
   display: flex;
