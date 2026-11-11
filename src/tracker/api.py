@@ -19,6 +19,7 @@ from tracker.config import get_settings
 from tracker.db.session import init_db, make_engine, session_scope
 from tracker.review import DECISIONS_PATH, KINDS, ReviewError, review_and_save, review_queue
 from tracker.views.feed import feed
+from tracker.views.insights import insights
 from tracker.views.sites import site_list, site_view
 from tracker.views.suppliers import scoreboard
 from tracker.views.ticker import ticker_index, ticker_view
@@ -43,6 +44,11 @@ def create_app(
     engine = engine or make_engine(get_settings().db_url)
     init_db(engine)  # adds tables a newer version needs (review_decision); never alters data
     app = FastAPI(title="Texas Data Center Tracker", docs_url="/api/docs")
+
+    @app.get("/api/overview")
+    def overview() -> dict:
+        with session_scope(engine) as session:
+            return {"disclaimer": DISCLAIMER, **insights(session)}
 
     @app.get("/api/tickers")
     def tickers() -> dict:

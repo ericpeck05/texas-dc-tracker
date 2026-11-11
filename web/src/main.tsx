@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { FeedPage } from "./FeedPage";
+import { OverviewPage } from "./OverviewPage";
 import { ReviewPage } from "./ReviewPage";
 import { SiteList } from "./SiteList";
 import { SupplierPage } from "./SupplierPage";
@@ -9,7 +10,7 @@ import { TickerIndex } from "./TickerIndex";
 import { TickerPage } from "./TickerPage";
 import "./styles.css";
 
-// Hash routes: #/ (feed), #/sites (map + site list), #/s/12 (one site), #/tickers, #/t/MSFT,
+// Hash routes: #/ (overview), #/feed, #/sites (map + site list), #/s/12 (one site), #/tickers, #/t/MSFT,
 // #/suppliers, #/review.
 function useRoute(): string {
   const [hash, setHash] = useState(window.location.hash || "#/");
@@ -29,7 +30,8 @@ function App() {
   const onReview = route.startsWith("#/review");
   const onSites = Boolean(site) || route.startsWith("#/sites");
   const onSuppliers = route.startsWith("#/suppliers");
-  const onFeed = !onTickers && !onReview && !onSites && !onSuppliers;
+  const onFeed = route.startsWith("#/feed");
+  const onOverview = !onFeed && !onTickers && !onReview && !onSites && !onSuppliers;
   let page;
   if (ticker) page = <TickerPage symbol={decodeURIComponent(ticker[1])} />;
   else if (site) page = <SitePage id={site[1]} />;
@@ -37,7 +39,8 @@ function App() {
   else if (onReview) page = <ReviewPage />;
   else if (onSites) page = <SiteList />;
   else if (onSuppliers) page = <SupplierPage />;
-  else page = <FeedPage />;
+  else if (onFeed) page = <FeedPage />;
+  else page = <OverviewPage />;
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [route]);
@@ -48,7 +51,10 @@ function App() {
           TX·DC TRACKER
         </a>
         <nav>
-          <a href="#/" className={onFeed ? "here" : undefined}>
+          <a href="#/" className={onOverview ? "here" : undefined}>
+            Overview
+          </a>
+          <a href="#/feed" className={onFeed ? "here" : undefined}>
             Feed
           </a>
           <a href="#/sites" className={onSites ? "here" : undefined}>
